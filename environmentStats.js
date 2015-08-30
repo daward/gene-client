@@ -79,6 +79,34 @@ var EnvironmentStats = {
 	 this.locationInfo = locationInfo
   },
   
+  computeCreature: function(environment) {
+	  var creatureInfo = []
+	  
+	  if(EnvironmentStats.creature) {
+		  if(environment.creatureMap.positions[EnvironmentStats.creature]) {
+			  var creature = environment.creatureMap.positions[EnvironmentStats.creature].data
+			  _.forOwn(creature, function(value, key) {
+				creatureInfo.push({'Name' : key, 'Value' : value});
+			 });
+			 
+			 creatureInfo.push({'Name' : 'MaxEnergy', 'Value' : creature.maxEnergy()});
+			 creatureInfo.push({'Name' : 'Predation', 'Value' : creature.predationScore()});
+			 creatureInfo.push({'Name' : 'Nutrition', 'Value' : creature.nutritionRange()[0] + " - " + creature.nutritionRange()[1]});
+			 
+		  }
+		  else {
+			  var id = _.findIndex(this.creatureInfo, function(cinfo) {
+				  return cinfo.Name == 'dead';
+				});
+				
+			  this.creatureInfo[id].Value = "true";
+			  creatureInfo = this.creatureInfo;
+		  }
+	  }
+	 
+	 this.creatureInfo = creatureInfo
+  },
+  
   compute: function(environment) {
 	
     this.year = this.year + 1;
@@ -86,6 +114,7 @@ var EnvironmentStats = {
 	this.computeGenetics(environment);		
 	this.computeLineage(environment);
 	this.computeLocation(environment);
+	this.computeCreature(environment);
   },
   
   truncate: function(data) {
@@ -103,8 +132,10 @@ EnvironmentStats.populationData = [];
 EnvironmentStats.geneticData = [];
 EnvironmentStats.ancestorList = [];
 EnvironmentStats.locationInfo = [];
+EnvironmentStats.creatureInfo = [];
 EnvironmentStats.year = 0;
 EnvironmentStats.x = 0;
 EnvironmentStats.y = 0;
+EnvironmentStats.creature;
 
 module.exports = EnvironmentStats;

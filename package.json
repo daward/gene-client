@@ -11,7 +11,7 @@
   "dependencies": {
     "events": "^1.0.2",
     "flux": "^2.1.1",
-    "gene-sim": "0.0.9",
+    "gene-sim": "0.0.10",
     "lodash-node": "^3.10.1",
     "object-assign": "^4.0.1",
     "react": "^0.13.3",

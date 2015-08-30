@@ -7,8 +7,8 @@ var stats = require("stats-lite")
 var EnvironmentStats = require("./environmentStats.js")
 
 var CHANGE_EVENT = 'new-year'
-
 var CHANGE_LOCATION = 'new-location'
+var CHANGE_CREATURE = 'new-creature'
 
 var Store = assign({}, EventEmitter.prototype, {
 
@@ -22,6 +22,11 @@ var Store = assign({}, EventEmitter.prototype, {
   addChangeLocationListener: function(callback) {
 	 this.on(CHANGE_EVENT, callback);
 	 this.on(CHANGE_LOCATION, callback);
+  },
+  
+  addChangeCreatureListener: function(callback) {
+	 this.on(CHANGE_EVENT, callback);
+	 this.on(CHANGE_CREATURE, callback);
   },
 
   /**
@@ -42,6 +47,12 @@ var Store = assign({}, EventEmitter.prototype, {
 	  EnvironmentStats.y = y;
 	  EnvironmentStats.computeLocation(this.god.environment);
 	  this.emit(CHANGE_LOCATION);
+  },
+  
+  setCreature: function(creature) {
+	  EnvironmentStats.creature = creature;
+	  EnvironmentStats.computeCreature(this.god.environment);
+	  this.emit(CHANGE_CREATURE);
   }
   
 });
@@ -75,6 +86,10 @@ AppDispatcher.register(function(action) {
 			
 		case "location-changed":
 			Store.setLocation(action.x, action.y);
+			break;
+			
+		case "select-creature":
+			Store.setCreature(action.creature);
 			break;
 
 		default:

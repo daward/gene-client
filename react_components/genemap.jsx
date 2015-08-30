@@ -40,14 +40,24 @@ module.exports = React.createClass({
 	
 	this.paintVegetation(context, Store.settings)
 	
-	context.fillStyle="#000000";
-	var gridSize = this.props.gridSize, margin = this.props.margin
-	_.forEach(Store.god.environment.getAllCreatures(), function(creature) {
-		context.fillText("C", margin + creature.x * gridSize + 20, margin + creature.y * gridSize + 25);
-	});
+	this.paintCreatures(context);
 	
 	context.strokeStyle = "black";
 	context.stroke();
+  },
+  
+  paintCreatures: function(context) {
+	context.fillStyle="#FF0000";
+	var gridSize = this.props.gridSize, margin = this.props.margin
+	_.forEach(Store.god.environment.getAllCreatures(), function(creature) {
+		context.fillRect(
+			margin + creature.x * gridSize + gridSize / 3, 
+			margin + creature.y * gridSize + gridSize / 3, 
+			gridSize / 3, 
+			gridSize / 3)
+			
+			
+	});
   },
   
   paintVegetation: function(context, settings) {
@@ -56,7 +66,11 @@ module.exports = React.createClass({
 		for(var y = 0; y < settings.dimensions.length; y++) {
 			var vegSize = Math.round(Store.god.environment.vegetationMap.get(x, y)[0].size)
 		    context.fillStyle= this.getColor(vegSize)
-			context.fillRect(this.props.margin + x * this.props.gridSize, this.props.margin + y * this.props.gridSize, this.props.margin + (x + 1) * this.props.gridSize, this.props.margin + (y + 1) * this.props.gridSize)
+			context.fillRect(
+				this.props.margin + x * this.props.gridSize, 
+				this.props.margin + y * this.props.gridSize, 
+				this.props.margin + (x + 1) * this.props.gridSize, 
+				this.props.margin + (y + 1) * this.props.gridSize)
 		}			
 	}
   },

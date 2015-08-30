@@ -97,6 +97,34 @@ var EnvironmentStats = {
 	 this.locationInfo = locationInfo
   },
   
+  computeCreature: function(environment) {
+	  var creatureInfo = []
+	  
+	  if(EnvironmentStats.creature) {
+		  if(environment.creatureMap.positions[EnvironmentStats.creature]) {
+			  var creature = environment.creatureMap.positions[EnvironmentStats.creature].data
+			  _.forOwn(creature, function(value, key) {
+				creatureInfo.push({'Name' : key, 'Value' : value});
+			 });
+			 
+			 creatureInfo.push({'Name' : 'MaxEnergy', 'Value' : creature.maxEnergy()});
+			 creatureInfo.push({'Name' : 'Predation', 'Value' : creature.predationScore()});
+			 creatureInfo.push({'Name' : 'Nutrition', 'Value' : creature.nutritionRange()[0] + " - " + creature.nutritionRange()[1]});
+			 
+		  }
+		  else {
+			  var id = _.findIndex(this.creatureInfo, function(cinfo) {
+				  return cinfo.Name == 'dead';
+				});
+				
+			  this.creatureInfo[id].Value = "true";
+			  creatureInfo = this.creatureInfo;
+		  }
+	  }
+	 
+	 this.creatureInfo = creatureInfo
+  },
+  
   compute: function(environment) {
 	
     this.year = this.year + 1;
@@ -104,6 +132,7 @@ var EnvironmentStats = {
 	this.computeGenetics(environment);		
 	this.computeLineage(environment);
 	this.computeLocation(environment);
+	this.computeCreature(environment);
   },
   
   truncate: function(data) {
@@ -121,9 +150,11 @@ EnvironmentStats.populationData = [];
 EnvironmentStats.geneticData = [];
 EnvironmentStats.ancestorList = [];
 EnvironmentStats.locationInfo = [];
+EnvironmentStats.creatureInfo = [];
 EnvironmentStats.year = 0;
 EnvironmentStats.x = 0;
 EnvironmentStats.y = 0;
+EnvironmentStats.creature;
 
 module.exports = EnvironmentStats;
 },{"gene-sim":12,"lodash-node":28,"sorty":348,"stats-lite":353}],3:[function(require,module,exports){
@@ -778,15 +809,23 @@ Courtship.prototype.procreate = function() {
 		var retVal = [];
 		var excessEnergy = this.female.energy - this.female.energyUsed();
 		
-		var litterSize = Math.min(this.female.litterSize(), excessEnergy)
-		var startingEnergy = Math.floor(excessEnergy / litterSize);
+		if(excessEnergy > 0) {
+			var litterSize = Math.min(this.female.litterSize(), excessEnergy)
+			var startingEnergy = Math.floor(excessEnergy / litterSize);
 		
-		this.female.energy = this.female.energy - (startingEnergy * litterSize)
+			var newEnegy = this.female.energy - (startingEnergy * litterSize);
 		
-		for(var i = 0; i < litterSize; i++) {
-			var offspring = this.female.fertilize(courtier, startingEnergy);
-			retVal.push(offspring);
-			this.environment.birth(offspring, this.female);
+			if(!newEnegy) {
+				throw new "Dont kill the female"
+			}
+		
+			this.female.energy = newEnegy
+		
+			for(var i = 0; i < litterSize; i++) {
+				var offspring = this.female.fertilize(courtier, startingEnergy);
+				retVal.push(offspring);
+				this.environment.birth(offspring, this.female);
+			}
 		}
 		
 		return retVal;
@@ -881,7 +920,15 @@ var Creature = function(sex, alleleValues, ancestry, startingEnergy) {
 		throw "Can't birth a creature with no energy";
 	}
 	
-	this.energy = startingEnergy;
+	if(!this.maxEnergy()) {
+		throw "Invalid max energy";
+	}
+	
+	this.energy = Math.min(startingEnergy, this.maxEnergy());
+	if(!this.energy) {
+		throw "Invalid energy";
+	}
+	
 	this.age = 0;
 	this.naturalDeathAge = Math.round(rand.rnorm(this.expectedLifespan(), Math.round(this.expectedLifespan() * .3)));
 	this.dead = false;
@@ -895,7 +942,21 @@ Creature.prototype.beginYear = function(environment) {
 }
 
 Creature.prototype.eat = function(food) {
-	this.energy = this.energy + food.energyValue();
+	if(!this.energy) {
+		throw "Invalid energy";
+	}
+	
+	var newEnergy = Math.min(this.energy + food.energyValue(), this.maxEnergy());
+	if(!newEnergy) {
+		throw "Invalid energy";
+	}
+	
+	this.energy = newEnergy;
+	
+	if(!this.energy) {
+		throw "Invalid energy";
+	}
+	
 	food.die();	
 }
 
@@ -996,17 +1057,17 @@ Creature.prototype.range = function() {
 // returns a value that is the combination of speed, intelligence, size and prowess
 // that determines how able one creature is to eat another 
 Creature.prototype.predationScore = function() {
-	return this.traits.Intelligence.value() + this.traits.Size.value() + this.traits.Speed.value() - this.traits.Prowess.value();
+	return this.intelligence() + this.size() + this.traits.Speed.value() - this.traits.Prowess.value();
 }
 
 // determines how much energy this creature is worth, if eaten
 Creature.prototype.energyValue = function() {
-	return this.traits.Size.value() * 2;
+	return this.size() * 2;
 }
 
 // the energy used is a function of the creature's size, intelligence, speed, prowess and if they have bred, their fertility
 Creature.prototype.energyUsed = function() {
-	return this.traits.Size.value() + this.traits.Intelligence.value() + this.traits.Speed.value() + Math.floor(Math.sqrt(this.traits.Prowess.value()));
+	return this.size() + this.intelligence() + this.traits.Speed.value() + Math.floor(Math.sqrt(this.traits.Prowess.value()));
 }
 
 // the normalized mean the creature should live, given a longevity and adequate health
@@ -1022,7 +1083,7 @@ Creature.prototype.fertilityAge = function() {
 // the maximium amount of energy the creature can store before becoming full
 // this is a function of size and intelligence
 Creature.prototype.maxEnergy = function () {
-	return this.traits.Size.value() + this.traits.Intelligence.value();
+	return this.energyUsed() * Math.log(this.intelligence() + 2);
 }
 
 Creature.prototype.litterSize = function () {
@@ -1031,6 +1092,14 @@ Creature.prototype.litterSize = function () {
 
 Creature.prototype.prowess = function () {
 	return this.traits.Prowess.value();
+}
+
+Creature.prototype.intelligence = function () {
+	return this.traits.Intelligence.value();
+}
+
+Creature.prototype.size = function () {
+	return this.traits.Size.value()
 }
 
 module.exports = Creature;
@@ -1225,7 +1294,7 @@ EnvironmentMap.prototype.makeInvisible = function(id) {
 EnvironmentMap.prototype.locate = function(id) {
 	if(this.positions[id]) {
 		return {"x" : this.positions[id].x, "y" : this.positions[id].y}
-		}
+	}
 }
 
 EnvironmentMap.prototype.list = function() {
@@ -1368,7 +1437,7 @@ God.prototype.letThereBeCreatures = function() {
 	creatures.push(new Creature(1, genome, [{"generation" : 0, "id" :godId} ], _.random(5, 10)));
 	
 	for(var i = 0; i < quant; i++) {
-		creatures.push(new Creature(_.random(0, 1), genome, [{"generation" : 0, "id" :godId} ], _.random(5, 10)));
+		creatures.push(new Creature(_.random(0, 1), genome, [{"generation" : 0, "id" :godId} ], _.random(5, 100)));
 	}
 	
 	for(var i = 0; i < creatures.length; i++) {
@@ -1379,7 +1448,7 @@ God.prototype.letThereBeCreatures = function() {
 God.prototype.letThereBeAGenome = function() {
 	var genome = [];
 	_.forEach(settings.traitTypes, function(traitType) {
-		var seed = _.random(0, 10)
+		var seed = _.random(2, 10)
 		genome[traitType] = [seed, _.random(seed - 1, seed + 1)];
 	});
 	return genome;
@@ -51161,7 +51230,59 @@ React.render(
 	React.createElement(Layout, null)
   , document.body
 );
-},{"./layout.jsx":358,"react":347}],355:[function(require,module,exports){
+},{"./layout.jsx":359,"react":347}],355:[function(require,module,exports){
+var React = require('react');
+var DataGrid = require('react-datagrid')
+var Store = require('../store.js')
+var EnvironmentStats = require('../environmentStats.js')
+var sorty = require('sorty')
+var AppDispatcher = require('../appDispatcher.js')
+
+var CreatureInfo = React.createClass({displayName: "CreatureInfo",
+	getInitialState: function() {			
+		var columns = [
+		  { name: 'Name', width: 200},
+		  { name: 'Value', width: 250},
+		]
+		
+    return {data: EnvironmentStats.creatureInfo, columns: columns, sortInfo:[{name: 'children', dir: 'desc', type: 'number'}]};
+  },
+  
+  componentDidMount: function() {
+    Store.addChangeCreatureListener(this.compute);
+  },
+  
+  compute: function() {
+	this.setState({data: EnvironmentStats.creatureInfo, columns: this.state.columns, sortInfo: this.state.sortInfo})
+  },
+  
+  sort: function(arr){
+	return sorty(this.state.sortInfo, arr)
+  },
+  
+  onSortChange : function(info){
+	  this.state.sortInfo = info
+	  data = sort(this.state.data)
+  },
+  
+  render: function() {
+	return (
+	  React.createElement("div", null, 
+	      React.createElement("h2", null, "Creature Information"), 
+		  React.createElement(DataGrid, {
+			idProperty: "Name", 
+			sortInfo: this.state.sortInfo, 
+			dataSource: this.state.data, 
+			columns: this.state.columns, 
+			style: {width: this.props.width, height: this.props.height}})
+	  )
+    );
+  }
+  
+ })
+ 
+ module.exports = CreatureInfo;
+},{"../appDispatcher.js":1,"../environmentStats.js":2,"../store.js":363,"react":347,"react-datagrid":43,"sorty":348}],356:[function(require,module,exports){
 var React = require('react');
 var DataGrid = require('react-datagrid')
 var Store = require('../store.js')
@@ -51213,7 +51334,7 @@ var DeathStats = React.createClass({displayName: "DeathStats",
  })
  
  module.exports = DeathStats;
-},{"../environmentStats.js":2,"../store.js":362,"react":347,"react-datagrid":43,"sorty":348}],356:[function(require,module,exports){
+},{"../environmentStats.js":2,"../store.js":363,"react":347,"react-datagrid":43,"sorty":348}],357:[function(require,module,exports){
 var React = require('react');
 var DataGrid = require('react-datagrid');
 var Store = require('../store.js');
@@ -51268,7 +51389,7 @@ var GeneStats = React.createClass({displayName: "GeneStats",
  })
  
  module.exports = GeneStats;
-},{"../environmentStats.js":2,"../store.js":362,"gene-sim":12,"lodash-node":28,"react":347,"react-datagrid":43,"sorty":348}],357:[function(require,module,exports){
+},{"../environmentStats.js":2,"../store.js":363,"gene-sim":12,"lodash-node":28,"react":347,"react-datagrid":43,"sorty":348}],358:[function(require,module,exports){
 var React  = require('react');
 var _ = require('lodash-node');
 var Store = require('../store.js')
@@ -51311,14 +51432,24 @@ module.exports = React.createClass({displayName: "exports",
 	
 	this.paintVegetation(context, Store.settings)
 	
-	context.fillStyle="#000000";
-	var gridSize = this.props.gridSize, margin = this.props.margin
-	_.forEach(Store.god.environment.getAllCreatures(), function(creature) {
-		context.fillText("C", margin + creature.x * gridSize + 20, margin + creature.y * gridSize + 25);
-	});
+	this.paintCreatures(context);
 	
 	context.strokeStyle = "black";
 	context.stroke();
+  },
+  
+  paintCreatures: function(context) {
+	context.fillStyle="#FF0000";
+	var gridSize = this.props.gridSize, margin = this.props.margin
+	_.forEach(Store.god.environment.getAllCreatures(), function(creature) {
+		context.fillRect(
+			margin + creature.x * gridSize + gridSize / 3, 
+			margin + creature.y * gridSize + gridSize / 3, 
+			gridSize / 3, 
+			gridSize / 3)
+			
+			
+	});
   },
   
   paintVegetation: function(context, settings) {
@@ -51327,7 +51458,11 @@ module.exports = React.createClass({displayName: "exports",
 		for(var y = 0; y < settings.dimensions.length; y++) {
 			var vegSize = Math.round(Store.god.environment.vegetationMap.get(x, y)[0].size)
 		    context.fillStyle= this.getColor(vegSize)
-			context.fillRect(this.props.margin + x * this.props.gridSize, this.props.margin + y * this.props.gridSize, this.props.margin + (x + 1) * this.props.gridSize, this.props.margin + (y + 1) * this.props.gridSize)
+			context.fillRect(
+				this.props.margin + x * this.props.gridSize, 
+				this.props.margin + y * this.props.gridSize, 
+				this.props.margin + (x + 1) * this.props.gridSize, 
+				this.props.margin + (y + 1) * this.props.gridSize)
 		}			
 	}
   },
@@ -51354,7 +51489,7 @@ module.exports = React.createClass({displayName: "exports",
   }
 });
 
-},{"../appDispatcher.js":1,"../store.js":362,"lodash-node":28,"react":347}],358:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../store.js":363,"lodash-node":28,"react":347}],359:[function(require,module,exports){
 var React = require('react');
 var Sidebar = require('react-sidebar');
 var RunYear = require('./runyear.jsx');
@@ -51363,6 +51498,7 @@ var DeathStats = require('./deathStats.jsx')
 var GeneStats = require('./geneStats.jsx')
 var LineageStats = require('./lineageStats.jsx')
 var LocationInfo = require('./locationInfo.jsx')
+var CreatureInfo = require('./creatureInfo.jsx')
 var Tabs = require('react-simpletabs');
 
 
@@ -51386,7 +51522,8 @@ var Layout = React.createClass({displayName: "Layout",
 			React.createElement(GeneStats, {width: 500, height: 500})
 		), 		
 		React.createElement(Tabs.Panel, {title: "Location"}, 			
-			React.createElement(LocationInfo, null)
+			React.createElement(LocationInfo, {width: 500, height: 500}), 	
+			React.createElement(CreatureInfo, {width: 500, height: 500})
 		)
 	)
 	
@@ -51409,7 +51546,7 @@ var Layout = React.createClass({displayName: "Layout",
 });
 
 module.exports = Layout;
-},{"./deathStats.jsx":355,"./geneStats.jsx":356,"./genemap.jsx":357,"./lineageStats.jsx":359,"./locationInfo.jsx":360,"./runyear.jsx":361,"react":347,"react-sidebar":172,"react-simpletabs":174}],359:[function(require,module,exports){
+},{"./creatureInfo.jsx":355,"./deathStats.jsx":356,"./geneStats.jsx":357,"./genemap.jsx":358,"./lineageStats.jsx":360,"./locationInfo.jsx":361,"./runyear.jsx":362,"react":347,"react-sidebar":172,"react-simpletabs":174}],360:[function(require,module,exports){
 var React = require('react');
 var DataGrid = require('react-datagrid')
 var Store = require('../store.js')
@@ -51458,12 +51595,13 @@ var LineageStats = React.createClass({displayName: "LineageStats",
  })
  
  module.exports = LineageStats;
-},{"../environmentStats.js":2,"../store.js":362,"react":347,"react-datagrid":43,"sorty":348}],360:[function(require,module,exports){
+},{"../environmentStats.js":2,"../store.js":363,"react":347,"react-datagrid":43,"sorty":348}],361:[function(require,module,exports){
 var React = require('react');
 var DataGrid = require('react-datagrid')
 var Store = require('../store.js')
 var EnvironmentStats = require('../environmentStats.js')
 var sorty = require('sorty')
+var AppDispatcher = require('../appDispatcher.js')
 
 var LocationInfo = React.createClass({displayName: "LocationInfo",
 	getInitialState: function() {			
@@ -51471,10 +51609,12 @@ var LocationInfo = React.createClass({displayName: "LocationInfo",
 		  { name: 'Name', width: 200},
 		  { name: 'Value', width: 250},
 		]
-
-	Store.addChangeLocationListener(this.compute);
 		
     return {data: EnvironmentStats.locationInfo, columns: columns, sortInfo:[{name: 'children', dir: 'desc', type: 'number'}]};
+  },
+  
+  componentDidMount: function() {
+	Store.addChangeLocationListener(this.compute);
   },
   
   compute: function() {
@@ -51484,6 +51624,15 @@ var LocationInfo = React.createClass({displayName: "LocationInfo",
   sort: function(arr){
 	return sorty(this.state.sortInfo, arr)
   },
+  
+  onSelectionChange: function(newSelectedId, data){
+		if(data.Name == "creature")	{
+			AppDispatcher.dispatch({
+				eventName: 'select-creature',
+				creature : data.Value
+			});
+		}
+	},
   
   onSortChange : function(info){
 	  this.state.sortInfo = info
@@ -51495,10 +51644,12 @@ var LocationInfo = React.createClass({displayName: "LocationInfo",
 	  React.createElement("div", null, 
 	      React.createElement("h2", null, "Location Information"), 
 		  React.createElement(DataGrid, {
-			idProperty: "ancestor", 
+			idProperty: "Name", 
 			sortInfo: this.state.sortInfo, 
 			dataSource: this.state.data, 
 			columns: this.state.columns, 
+			selected: 1, 
+			onSelectionChange: this.onSelectionChange, 
 			style: {width: this.props.width, height: this.props.height}})
 	  )
     );
@@ -51507,7 +51658,7 @@ var LocationInfo = React.createClass({displayName: "LocationInfo",
  })
  
  module.exports = LocationInfo;
-},{"../environmentStats.js":2,"../store.js":362,"react":347,"react-datagrid":43,"sorty":348}],361:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../environmentStats.js":2,"../store.js":363,"react":347,"react-datagrid":43,"sorty":348}],362:[function(require,module,exports){
 var React  = require('react');
 var AppDispatcher = require('../appDispatcher.js')
 
@@ -51547,7 +51698,7 @@ module.exports = React.createClass({displayName: "exports",
   }
 });
 
-},{"../appDispatcher.js":1,"react":347}],362:[function(require,module,exports){
+},{"../appDispatcher.js":1,"react":347}],363:[function(require,module,exports){
 var AppDispatcher = require('./appDispatcher.js')
 var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
@@ -51557,8 +51708,8 @@ var stats = require("stats-lite")
 var EnvironmentStats = require("./environmentStats.js")
 
 var CHANGE_EVENT = 'new-year'
-
 var CHANGE_LOCATION = 'new-location'
+var CHANGE_CREATURE = 'new-creature'
 
 var Store = assign({}, EventEmitter.prototype, {
 
@@ -51572,6 +51723,11 @@ var Store = assign({}, EventEmitter.prototype, {
   addChangeLocationListener: function(callback) {
 	 this.on(CHANGE_EVENT, callback);
 	 this.on(CHANGE_LOCATION, callback);
+  },
+  
+  addChangeCreatureListener: function(callback) {
+	 this.on(CHANGE_EVENT, callback);
+	 this.on(CHANGE_CREATURE, callback);
   },
 
   /**
@@ -51592,6 +51748,12 @@ var Store = assign({}, EventEmitter.prototype, {
 	  EnvironmentStats.y = y;
 	  EnvironmentStats.computeLocation(this.god.environment);
 	  this.emit(CHANGE_LOCATION);
+  },
+  
+  setCreature: function(creature) {
+	  EnvironmentStats.creature = creature;
+	  EnvironmentStats.computeCreature(this.god.environment);
+	  this.emit(CHANGE_CREATURE);
   }
   
 });
@@ -51626,6 +51788,10 @@ AppDispatcher.register(function(action) {
 		case "location-changed":
 			Store.setLocation(action.x, action.y);
 			break;
+			
+		case "select-creature":
+			Store.setCreature(action.creature);
+			break;
 
 		default:
       // no op
@@ -51634,4 +51800,4 @@ AppDispatcher.register(function(action) {
  })
 
 module.exports = Store;
-},{"./appDispatcher.js":1,"./environmentStats.js":2,"events":3,"gene-sim":12,"lodash-node":28,"object-assign":29,"stats-lite":353}]},{},[354,355,356,357,358,359,360,361]);
+},{"./appDispatcher.js":1,"./environmentStats.js":2,"events":3,"gene-sim":12,"lodash-node":28,"object-assign":29,"stats-lite":353}]},{},[354,355,356,357,358,359,360,361,362]);
