@@ -4,19 +4,24 @@ var assign = require('object-assign');
 var Gene = require('gene-sim');
 var _ = require('lodash-node');
 var stats = require("stats-lite")
+var EnvironmentStats = require("./environmentStats.js")
 
 var CHANGE_EVENT = 'new-year'
 
+var CHANGE_LOCATION = 'new-location'
+
 var Store = assign({}, EventEmitter.prototype, {
-  emitChange: function() {
-    this.emit(CHANGE_EVENT);
-  },
 
   /**
    * @param {function} callback
    */
   addChangeListener: function(callback) {
     this.on(CHANGE_EVENT, callback);
+  },
+  
+  addChangeLocationListener: function(callback) {
+	 this.on(CHANGE_EVENT, callback);
+	 this.on(CHANGE_LOCATION, callback);
   },
 
   /**
@@ -26,51 +31,50 @@ var Store = assign({}, EventEmitter.prototype, {
     this.removeListener(CHANGE_EVENT, callback);
   },
   
-  compute: function() {
-	
-    this.year = this.year + 1;
-	this.populationData.push({
-		year : this.year, 
-		starved : this.god.environment.deathReasons["starvation"], 
-		'old age': this.god.environment.deathReasons["old age"], 
-		eaten: this.god.environment.deathReasons["eaten"],
-		alive: this.god.environment.getAllCreatures().length}
-	);
-	
-	var creatures = this.god.environment.getAllCreatures();
-	var geneData = {}
-	_.forEach(Gene.Settings.traitTypes, function(trait) {
-		geneData[trait] = []
-		_.forEach(creatures, function(creature) {
-			geneData[trait].push(creature.data.traits[trait].value())
-		})
-	})
-	
-	
-	var genes = {}
-	_.forEach(Gene.Settings.traitTypes, function(trait) {
-		genes[trait] = stats.mean(geneData[trait])
-	})
-	genes['year'] = this.year;
-	
-	this.geneticData.push(genes);
-		
+  runYear: function() {
+	this.god.observeTheWorldIHaveCreated();
+	EnvironmentStats.compute(this.god.environment);
+	this.emit(CHANGE_EVENT);
   },
+  
+  setLocation: function(x, y) {
+	  EnvironmentStats.x = x;
+	  EnvironmentStats.y = y;
+	  EnvironmentStats.computeLocation(this.god.environment);
+	  this.emit(CHANGE_LOCATION);
+  }
+  
 });
 
 Store.god = new Gene.God();
 Store.god.createTheWorld();
-Store.settings = Gene.Settings; 
-Store.year = 0;
-Store.populationData = [];
-Store.geneticData = [];
+Store.settings = Gene.Settings;
+Store.running = false;
 
 AppDispatcher.register(function(action) {
 	switch(action.eventName) {
 		case "start-year":
-			Store.god.observeTheWorldIHaveCreated();
-			Store.compute();
-			Store.emitChange();
+			Store.runYear();			
+			break;
+			
+		case "start-continuous":
+			Store.runYear();
+			Store.running = true;
+			setTimeout(function(){				
+				if(Store.running) {
+					AppDispatcher.dispatch({
+						eventName: 'start-continuous',
+					});
+				}
+			}, 100);
+			break;
+			
+		case "stop-continuous":
+			Store.running = false;
+			break;
+			
+		case "location-changed":
+			Store.setLocation(action.x, action.y);
 			break;
 
 		default:

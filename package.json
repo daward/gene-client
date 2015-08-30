@@ -11,12 +11,13 @@
   "dependencies": {
     "events": "^1.0.2",
     "flux": "^2.1.1",
-    "gene-sim": "0.0.8",
+    "gene-sim": "0.0.9",
     "lodash-node": "^3.10.1",
     "object-assign": "^4.0.1",
     "react": "^0.13.3",
     "react-datagrid": "^1.2.13",
     "react-sidebar": "^1.0.3",
+    "react-simpletabs": "^0.6.1",
     "sorty": "^1.2.0",
     "stats-lite": "^1.0.3"
   },

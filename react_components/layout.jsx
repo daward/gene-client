@@ -4,6 +4,9 @@ var RunYear = require('./runyear.jsx');
 var Genemap = require('./genemap.jsx')
 var DeathStats = require('./deathStats.jsx')
 var GeneStats = require('./geneStats.jsx')
+var LineageStats = require('./lineageStats.jsx')
+var LocationInfo = require('./locationInfo.jsx')
+var Tabs = require('react-simpletabs');
 
 
 var Layout = React.createClass({
@@ -17,10 +20,18 @@ var Layout = React.createClass({
 
   render: function() {
     var sidebarContent = 
-	<div>
-		<DeathStats width={500} height={500}/>;
-		<GeneStats width={500} height={500}/>
-	</div>
+	<Tabs>
+        <Tabs.Panel title='Population'>
+			<DeathStats width={500} height={500}/>
+			<LineageStats width={500} height={500}/>
+		</Tabs.Panel>
+		<Tabs.Panel title='Genetics'>			
+			<GeneStats width={500} height={500}/>
+		</Tabs.Panel>		
+		<Tabs.Panel title='Location'>			
+			<LocationInfo />
+		</Tabs.Panel>
+	</Tabs>
 	
     return (
       <Sidebar sidebar={sidebarContent}
@@ -32,7 +43,7 @@ var Layout = React.createClass({
 			<RunYear />
 		  </div>
 		  <div>
-			<Genemap />
+			<Genemap gridSize={30} margin={10}/>
 		  </div>
 		</div>
       </Sidebar>

@@ -3,11 +3,11 @@ var DataGrid = require('react-datagrid');
 var Store = require('../store.js');
 var sorty = require('sorty');
 var Gene = require('gene-sim');
+var EnvironmentStats = require('../environmentStats.js')
 var _ = require('lodash-node');
 
 var GeneStats = React.createClass({
 	getInitialState: function() {
-		var data = []
 		
 		var columns = [
 		  { name: 'year', width: 50},
@@ -15,15 +15,17 @@ var GeneStats = React.createClass({
 		
 		_.forEach(Gene.Settings.traitTypes, function(trait) {
 			columns.push({ name: trait, width: 50})
-		})		
-
-	Store.addChangeListener(this.compute);
+		});
 		
-    return {data: data, columns: columns, year: 0, sortInfo:[{name: 'year', dir: 'desc', type: 'number'}]};
+    return {data: EnvironmentStats.geneticData, columns: columns, year: 0, sortInfo:[{name: 'year', dir: 'desc', type: 'number'}]};
+  },
+  
+  componentDidMount: function() {
+    Store.addChangeListener(this.compute);
   },
   
   compute: function() {
-	this.setState({data: Store.geneticData, columns: this.state.columns, sortInfo: this.state.sortInfo})
+	this.setState({data: EnvironmentStats.geneticData, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },
   
   sort: function(arr){

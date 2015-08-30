@@ -1,20 +1,18 @@
 var React = require('react');
 var DataGrid = require('react-datagrid')
 var Store = require('../store.js')
-var sorty = require('sorty')
 var EnvironmentStats = require('../environmentStats.js')
+var sorty = require('sorty')
 
-var DeathStats = React.createClass({
-	getInitialState: function() {
+var LineageStats = React.createClass({
+	getInitialState: function() {		
 		var columns = [
-		  { name: 'year', width: 50},
-		  { name: 'starved', width: 100},
-		  { name: 'old age', width: 100},
-		  { name: 'eaten', width: 100},
-		  { name: 'alive', width: 100},
-		];
+		  { name: 'ancestor', width: 150},
+		  { name: 'children', width: 150},
+		  { name: 'percentage', width: 150},
+		]
 		
-    return {data: EnvironmentStats.populationData, columns: columns, sortInfo:[{name: 'year', dir: 'desc', type: 'number'}]};
+    return {data: EnvironmentStats.ancestorList, columns: columns, sortInfo:[{name: 'children', dir: 'desc', type: 'number'}]};
   },
   
   componentDidMount: function() {
@@ -22,7 +20,7 @@ var DeathStats = React.createClass({
   },
   
   compute: function() {
-	this.setState({data: EnvironmentStats.populationData, columns: this.state.columns, sortInfo: this.state.sortInfo})
+	this.setState({data: EnvironmentStats.ancestorList, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },
   
   sort: function(arr){
@@ -32,13 +30,12 @@ var DeathStats = React.createClass({
   onSortChange : function(info){
 	  this.state.sortInfo = info
 	  data = sort(this.state.data)
-	  //now refresh the grid
   },
   
   render: function() {
 	return (
 	  <DataGrid 
-		idProperty="year" 
+		idProperty="ancestor" 
 		sortInfo={this.state.sortInfo}
 		dataSource={this.sort(this.state.data)} 
 		columns={this.state.columns} 
@@ -48,4 +45,4 @@ var DeathStats = React.createClass({
   
  })
  
- module.exports = DeathStats;
+ module.exports = LineageStats;
