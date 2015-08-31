@@ -5,18 +5,23 @@ var AppDispatcher = require('../appDispatcher.js')
 
 module.exports = React.createClass({
   componentDidMount: function() {
-	Store.addChangeListener(this.paint);
+	Store.addChangeAncestorListener(this.paint);
+	Store.addChangeCreatureListener(this.paint);
     this.paint();
   },  
   
   handleClick: function(event) {
 	var x = Math.floor((event.offsetX - this.props.margin) / this.props.gridSize);
 	var y = Math.floor((event.offsetY - this.props.margin) / this.props.gridSize);
-	 AppDispatcher.dispatch({
-        eventName: 'location-changed',
-		x : x,
-		y : y
-    });
+	
+	if(x <= Store.settings.dimensions.width && y <= Store.settings.dimensions.length) {
+	
+		 AppDispatcher.dispatch({
+			eventName: 'location-changed',
+			x : x,
+			y : y
+		});
+	}
   },
   
   paint: function(context) 
@@ -47,9 +52,32 @@ module.exports = React.createClass({
   },
   
   paintCreatures: function(context) {
-	context.fillStyle="#FF0000";
+	
 	var gridSize = this.props.gridSize, margin = this.props.margin
 	_.forEach(Store.god.environment.getAllCreatures(), function(creature) {
+	
+		if(_.find(creature.data.ancestry, function(anc) { return anc.id == Store.ancestor})) {
+			context.fillStyle="#FF0000";
+		} else {
+			context.fillStyle="#0000FF";
+		}
+		
+		if(creature.data.id == Store.creature) {
+			var padding = 3
+			
+			context.fillRect(
+				margin + creature.x * gridSize + gridSize / 3 - padding, 
+				margin + creature.y * gridSize + gridSize / 3 - padding, 
+				gridSize / 3 + padding * 2, 
+				gridSize / 3 + padding * 2)
+				
+			context.clearRect(
+				margin + creature.x * gridSize + gridSize / 3 - padding - 1, 
+				margin + creature.y * gridSize + gridSize / 3 - padding - 1, 
+				gridSize / 3 + padding * 2 - 1, 
+				gridSize / 3 + padding * 2 - 1)
+		}
+		
 		context.fillRect(
 			margin + creature.x * gridSize + gridSize / 3, 
 			margin + creature.y * gridSize + gridSize / 3, 
@@ -69,8 +97,8 @@ module.exports = React.createClass({
 			context.fillRect(
 				this.props.margin + x * this.props.gridSize, 
 				this.props.margin + y * this.props.gridSize, 
-				this.props.margin + (x + 1) * this.props.gridSize, 
-				this.props.margin + (y + 1) * this.props.gridSize)
+				this.props.gridSize, 
+				this.props.gridSize)
 		}			
 	}
   },

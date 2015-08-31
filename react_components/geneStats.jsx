@@ -10,11 +10,22 @@ var GeneStats = React.createClass({
 	getInitialState: function() {
 		
 		var columns = [
-		  { name: 'year', width: 50},
+		  { name: 'year', width: 40},
 		]
 		
 		_.forEach(Gene.Settings.traitTypes, function(trait) {
-			columns.push({ name: trait, width: 50})
+			columns.push({ name: trait, width: 70, render: function(value, data, props) { 
+				var maxLen = Math.min(EnvironmentStats.geneticData.length - 1, props.rowIndex + 10)
+				if(EnvironmentStats.geneticData[props.rowIndex][trait] < EnvironmentStats.geneticData[maxLen][trait]) {
+					props.style.color = "red"
+				}
+				
+				if(EnvironmentStats.geneticData[props.rowIndex][trait] > EnvironmentStats.geneticData[maxLen][trait]) {
+					props.style.color = "green"
+				}
+				
+				return value;
+			} })
 		});
 		
     return {data: EnvironmentStats.geneticData, columns: columns, year: 0, sortInfo:[{name: 'year', dir: 'desc', type: 'number'}]};
@@ -22,6 +33,10 @@ var GeneStats = React.createClass({
   
   componentDidMount: function() {
     Store.addChangeListener(this.compute);
+  },
+  
+  componentWillUnmount: function() {
+	Store.removeChangeListener(this.compute);
   },
   
   compute: function() {

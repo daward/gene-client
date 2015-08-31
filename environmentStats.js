@@ -92,6 +92,10 @@ var EnvironmentStats = {
 			 creatureInfo.push({'Name' : 'MaxEnergy', 'Value' : creature.maxEnergy()});
 			 creatureInfo.push({'Name' : 'Predation', 'Value' : creature.predationScore()});
 			 creatureInfo.push({'Name' : 'Nutrition', 'Value' : creature.nutritionRange()[0] + " - " + creature.nutritionRange()[1]});
+			 creatureInfo.push({'Name' : 'Energy Use', 'Value' : creature.energyUsed()});
+			 creatureInfo.push({'Name' : 'Range', 'Value' : creature.range()});
+			 creatureInfo.push({'Name' : 'Intelligence', 'Value' : creature.intelligence()});
+			 creatureInfo.push({'Name' : 'Size', 'Value' : creature.size()});
 			 
 		  }
 		  else {

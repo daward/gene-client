@@ -110,6 +110,10 @@ var EnvironmentStats = {
 			 creatureInfo.push({'Name' : 'MaxEnergy', 'Value' : creature.maxEnergy()});
 			 creatureInfo.push({'Name' : 'Predation', 'Value' : creature.predationScore()});
 			 creatureInfo.push({'Name' : 'Nutrition', 'Value' : creature.nutritionRange()[0] + " - " + creature.nutritionRange()[1]});
+			 creatureInfo.push({'Name' : 'Energy Use', 'Value' : creature.energyUsed()});
+			 creatureInfo.push({'Name' : 'Range', 'Value' : creature.range()});
+			 creatureInfo.push({'Name' : 'Intelligence', 'Value' : creature.intelligence()});
+			 creatureInfo.push({'Name' : 'Size', 'Value' : creature.size()});
 			 
 		  }
 		  else {
@@ -809,7 +813,7 @@ Courtship.prototype.procreate = function() {
 		var retVal = [];
 		var excessEnergy = this.female.energy - this.female.energyUsed();
 		
-		if(excessEnergy > 0) {
+		if(excessEnergy > 0 && this.female.litterSize() > 0) {
 			var litterSize = Math.min(this.female.litterSize(), excessEnergy)
 			var startingEnergy = Math.floor(excessEnergy / litterSize);
 		
@@ -915,6 +919,8 @@ var Creature = function(sex, alleleValues, ancestry, startingEnergy) {
 	this.sex = sex;
 	this.id = uuid();
 	this.ancestry = ancestry;
+	this.age = 0;
+	this.dead = false;
 	
 	if(!startingEnergy) {
 		throw "Can't birth a creature with no energy";
@@ -929,9 +935,7 @@ var Creature = function(sex, alleleValues, ancestry, startingEnergy) {
 		throw "Invalid energy";
 	}
 	
-	this.age = 0;
 	this.naturalDeathAge = Math.round(rand.rnorm(this.expectedLifespan(), Math.round(this.expectedLifespan() * .3)));
-	this.dead = false;
 }
 
 // ACTIONS
@@ -1044,20 +1048,10 @@ Creature.prototype.breedingRange = function() {
 	}
 }
 
-Creature.prototype.nutritionRange = function() {
-	return this.traits.Nutrition.range();
-}
-
-// returns a function of speed that will be the distance the creature can travel
-// during the turn for migration, hunting or breeding purposes
-Creature.prototype.range = function() {
-	return Math.floor(Math.sqrt(this.traits.Speed.value()));
-}
-
 // returns a value that is the combination of speed, intelligence, size and prowess
 // that determines how able one creature is to eat another 
 Creature.prototype.predationScore = function() {
-	return this.intelligence() + this.size() + this.traits.Speed.value() - this.traits.Prowess.value();
+	return this.intelligence() + this.size() + this.range() - this.prowess();
 }
 
 // determines how much energy this creature is worth, if eaten
@@ -1067,12 +1061,19 @@ Creature.prototype.energyValue = function() {
 
 // the energy used is a function of the creature's size, intelligence, speed, prowess and if they have bred, their fertility
 Creature.prototype.energyUsed = function() {
-	return this.size() + this.intelligence() + this.traits.Speed.value() + Math.floor(Math.sqrt(this.traits.Prowess.value()));
+	return this.size() + this.intelligence() + this.range() + Math.floor(Math.sqrt(this.prowess()));
 }
 
 // the normalized mean the creature should live, given a longevity and adequate health
 Creature.prototype.expectedLifespan = function () {
 	return Math.log(this.traits.Longevity.value() + 2) * 10;
+}
+
+// returns a function of speed that will be the distance the creature can travel
+// during the turn for migration, hunting or breeding purposes
+Creature.prototype.range = function() {
+	var cappedSpeed = Math.min(this.traits.Speed.value(), this.size())
+	return Math.floor(Math.sqrt(cappedSpeed));
 }
 
 // the age a creature can first engage in breeding, which is a function of longevity
@@ -1090,16 +1091,24 @@ Creature.prototype.litterSize = function () {
 	return this.traits.Fertility.value()
 }
 
+Creature.prototype.nutritionRange = function() {
+	return this.traits.Nutrition.range();
+}
+
 Creature.prototype.prowess = function () {
 	return this.traits.Prowess.value();
 }
 
 Creature.prototype.intelligence = function () {
-	return this.traits.Intelligence.value();
+	return Math.min(this.traits.Intelligence.value(), this.traits.Longevity.value()) * this.youthFactor();
 }
 
 Creature.prototype.size = function () {
-	return this.traits.Size.value()
+	return Math.min(this.traits.Size.value(), this.traits.Longevity.value())  * this.youthFactor();
+}
+
+Creature.prototype.youthFactor = function() {
+	return Math.min(1, (this.age + 1) / this.fertilityAge())
 }
 
 module.exports = Creature;
@@ -51252,6 +51261,10 @@ var CreatureInfo = React.createClass({displayName: "CreatureInfo",
     Store.addChangeCreatureListener(this.compute);
   },
   
+  componentWillUnmount: function() {
+	Store.removeChangeCreatureListener(this.compute);
+  },
+  
   compute: function() {
 	this.setState({data: EnvironmentStats.creatureInfo, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },
@@ -51306,6 +51319,10 @@ var DeathStats = React.createClass({displayName: "DeathStats",
     Store.addChangeListener(this.compute);
   },
   
+  componentWillUnmount: function() {
+    Store.removeChangeListener(this.compute);
+  },
+  
   compute: function() {
 	this.setState({data: EnvironmentStats.populationData, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },
@@ -51347,11 +51364,22 @@ var GeneStats = React.createClass({displayName: "GeneStats",
 	getInitialState: function() {
 		
 		var columns = [
-		  { name: 'year', width: 50},
+		  { name: 'year', width: 40},
 		]
 		
 		_.forEach(Gene.Settings.traitTypes, function(trait) {
-			columns.push({ name: trait, width: 50})
+			columns.push({ name: trait, width: 70, render: function(value, data, props) { 
+				var maxLen = Math.min(EnvironmentStats.geneticData.length - 1, props.rowIndex + 10)
+				if(EnvironmentStats.geneticData[props.rowIndex][trait] < EnvironmentStats.geneticData[maxLen][trait]) {
+					props.style.color = "red"
+				}
+				
+				if(EnvironmentStats.geneticData[props.rowIndex][trait] > EnvironmentStats.geneticData[maxLen][trait]) {
+					props.style.color = "green"
+				}
+				
+				return value;
+			} })
 		});
 		
     return {data: EnvironmentStats.geneticData, columns: columns, year: 0, sortInfo:[{name: 'year', dir: 'desc', type: 'number'}]};
@@ -51359,6 +51387,10 @@ var GeneStats = React.createClass({displayName: "GeneStats",
   
   componentDidMount: function() {
     Store.addChangeListener(this.compute);
+  },
+  
+  componentWillUnmount: function() {
+	Store.removeChangeListener(this.compute);
   },
   
   compute: function() {
@@ -51397,18 +51429,23 @@ var AppDispatcher = require('../appDispatcher.js')
 
 module.exports = React.createClass({displayName: "exports",
   componentDidMount: function() {
-	Store.addChangeListener(this.paint);
+	Store.addChangeAncestorListener(this.paint);
+	Store.addChangeCreatureListener(this.paint);
     this.paint();
   },  
   
   handleClick: function(event) {
 	var x = Math.floor((event.offsetX - this.props.margin) / this.props.gridSize);
 	var y = Math.floor((event.offsetY - this.props.margin) / this.props.gridSize);
-	 AppDispatcher.dispatch({
-        eventName: 'location-changed',
-		x : x,
-		y : y
-    });
+	
+	if(x <= Store.settings.dimensions.width && y <= Store.settings.dimensions.length) {
+	
+		 AppDispatcher.dispatch({
+			eventName: 'location-changed',
+			x : x,
+			y : y
+		});
+	}
   },
   
   paint: function(context) 
@@ -51439,9 +51476,32 @@ module.exports = React.createClass({displayName: "exports",
   },
   
   paintCreatures: function(context) {
-	context.fillStyle="#FF0000";
+	
 	var gridSize = this.props.gridSize, margin = this.props.margin
 	_.forEach(Store.god.environment.getAllCreatures(), function(creature) {
+	
+		if(_.find(creature.data.ancestry, function(anc) { return anc.id == Store.ancestor})) {
+			context.fillStyle="#FF0000";
+		} else {
+			context.fillStyle="#0000FF";
+		}
+		
+		if(creature.data.id == Store.creature) {
+			var padding = 3
+			
+			context.fillRect(
+				margin + creature.x * gridSize + gridSize / 3 - padding, 
+				margin + creature.y * gridSize + gridSize / 3 - padding, 
+				gridSize / 3 + padding * 2, 
+				gridSize / 3 + padding * 2)
+				
+			context.clearRect(
+				margin + creature.x * gridSize + gridSize / 3 - padding - 1, 
+				margin + creature.y * gridSize + gridSize / 3 - padding - 1, 
+				gridSize / 3 + padding * 2 - 1, 
+				gridSize / 3 + padding * 2 - 1)
+		}
+		
 		context.fillRect(
 			margin + creature.x * gridSize + gridSize / 3, 
 			margin + creature.y * gridSize + gridSize / 3, 
@@ -51461,8 +51521,8 @@ module.exports = React.createClass({displayName: "exports",
 			context.fillRect(
 				this.props.margin + x * this.props.gridSize, 
 				this.props.margin + y * this.props.gridSize, 
-				this.props.margin + (x + 1) * this.props.gridSize, 
-				this.props.margin + (y + 1) * this.props.gridSize)
+				this.props.gridSize, 
+				this.props.gridSize)
 		}			
 	}
   },
@@ -51537,7 +51597,7 @@ var Layout = React.createClass({displayName: "Layout",
 			React.createElement(RunYear, null)
 		  ), 
 		  React.createElement("div", null, 
-			React.createElement(Genemap, {gridSize: 30, margin: 10})
+			React.createElement(Genemap, {gridSize: 21, margin: 10})
 		  )
 		)
       )
@@ -51552,6 +51612,7 @@ var DataGrid = require('react-datagrid')
 var Store = require('../store.js')
 var EnvironmentStats = require('../environmentStats.js')
 var sorty = require('sorty')
+var AppDispatcher = require('../appDispatcher.js')
 
 var LineageStats = React.createClass({displayName: "LineageStats",
 	getInitialState: function() {		
@@ -51568,6 +51629,10 @@ var LineageStats = React.createClass({displayName: "LineageStats",
     Store.addChangeListener(this.compute);
   },
   
+  componentWillUnmount: function() {
+	Store.removeChangeListener(this.compute);
+  },
+  
   compute: function() {
 	this.setState({data: EnvironmentStats.ancestorList, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },
@@ -51581,6 +51646,15 @@ var LineageStats = React.createClass({displayName: "LineageStats",
 	  data = sort(this.state.data)
   },
   
+  onSelectionChange: function(newSelectedId, data){
+
+		AppDispatcher.dispatch({
+			eventName: 'select-ancestor',
+			creature : data.ancestor
+		});
+
+	},
+  
   render: function() {
 	return (
 	  React.createElement(DataGrid, {
@@ -51588,6 +51662,8 @@ var LineageStats = React.createClass({displayName: "LineageStats",
 		sortInfo: this.state.sortInfo, 
 		dataSource: this.sort(this.state.data), 
 		columns: this.state.columns, 
+		selected: 1, 
+		onSelectionChange: this.onSelectionChange, 
 		style: {width: this.props.width, height: this.props.height}})
     );
   }
@@ -51595,7 +51671,7 @@ var LineageStats = React.createClass({displayName: "LineageStats",
  })
  
  module.exports = LineageStats;
-},{"../environmentStats.js":2,"../store.js":363,"react":347,"react-datagrid":43,"sorty":348}],361:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../environmentStats.js":2,"../store.js":363,"react":347,"react-datagrid":43,"sorty":348}],361:[function(require,module,exports){
 var React = require('react');
 var DataGrid = require('react-datagrid')
 var Store = require('../store.js')
@@ -51615,6 +51691,10 @@ var LocationInfo = React.createClass({displayName: "LocationInfo",
   
   componentDidMount: function() {
 	Store.addChangeLocationListener(this.compute);
+  },
+  
+  componentWillUnmount: function() {
+	Store.removeChangeLocationListener(this.compute);
   },
   
   compute: function() {
@@ -51691,8 +51771,8 @@ module.exports = React.createClass({displayName: "exports",
   render: function() {
     return (
 	  React.createElement("div", null, 
-		React.createElement("button", {onClick: this.handleRun.bind(this)}, "Run Single Year"), 
-		React.createElement("button", {onClick: this.handleRunContinuous.bind(this)}, this.state.currentAction)
+		React.createElement("button", {onClick:  this.handleRun}, "Run Single Year"), 
+		React.createElement("button", {onClick:  this.handleRunContinuous}, this.state.currentAction)
 	  )
     );
   }
@@ -51710,14 +51790,24 @@ var EnvironmentStats = require("./environmentStats.js")
 var CHANGE_EVENT = 'new-year'
 var CHANGE_LOCATION = 'new-location'
 var CHANGE_CREATURE = 'new-creature'
+var CHANGE_ANCESTOR = 'new-ancestor'
 
 var Store = assign({}, EventEmitter.prototype, {
 
-  /**
-   * @param {function} callback
-   */
   addChangeListener: function(callback) {
     this.on(CHANGE_EVENT, callback);
+  },
+
+  removeChangeListener: function(callback) {
+    this.removeListener(CHANGE_EVENT, callback);
+  },
+  
+  addChangeAncestorListener: function(callback) {
+    this.on(CHANGE_ANCESTOR, callback);
+  },
+  
+  removeChangeAncestorListener: function(callback) {
+    this.removeListener(CHANGE_ANCESTOR, callback);
   },
   
   addChangeLocationListener: function(callback) {
@@ -51725,16 +51815,19 @@ var Store = assign({}, EventEmitter.prototype, {
 	 this.on(CHANGE_LOCATION, callback);
   },
   
+  removeChangeLocationListener: function(callback) {
+	 this.removeListener(CHANGE_EVENT, callback);
+	 this.removeListener(CHANGE_LOCATION, callback);
+  },
+  
   addChangeCreatureListener: function(callback) {
 	 this.on(CHANGE_EVENT, callback);
 	 this.on(CHANGE_CREATURE, callback);
   },
-
-  /**
-   * @param {function} callback
-   */
-  removeChangeListener: function(callback) {
-    this.removeListener(CHANGE_EVENT, callback);
+  
+  removeChangeCreatureListener: function(callback) {
+	  this.removeListener(CHANGE_EVENT, callback);
+	  this.removeListener(CHANGE_CREATURE, callback);;
   },
   
   runYear: function() {
@@ -51750,8 +51843,14 @@ var Store = assign({}, EventEmitter.prototype, {
 	  this.emit(CHANGE_LOCATION);
   },
   
+  setAncestor: function(id) {
+	  this.ancestor = id;
+	  this.emit(CHANGE_ANCESTOR);
+  },
+  
   setCreature: function(creature) {
 	  EnvironmentStats.creature = creature;
+	  Store.creature = creature;
 	  EnvironmentStats.computeCreature(this.god.environment);
 	  this.emit(CHANGE_CREATURE);
   }
@@ -51762,6 +51861,8 @@ Store.god = new Gene.God();
 Store.god.createTheWorld();
 Store.settings = Gene.Settings;
 Store.running = false;
+Store.ancestor = null;
+Store.creature = null;
 
 AppDispatcher.register(function(action) {
 	switch(action.eventName) {
@@ -51791,6 +51892,10 @@ AppDispatcher.register(function(action) {
 			
 		case "select-creature":
 			Store.setCreature(action.creature);
+			break;
+			
+		case "select-ancestor":
+			Store.setAncestor(action.creature);
 			break;
 
 		default:

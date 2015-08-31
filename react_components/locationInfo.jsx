@@ -19,6 +19,10 @@ var LocationInfo = React.createClass({
 	Store.addChangeLocationListener(this.compute);
   },
   
+  componentWillUnmount: function() {
+	Store.removeChangeLocationListener(this.compute);
+  },
+  
   compute: function() {
 	this.setState({data: EnvironmentStats.locationInfo, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },

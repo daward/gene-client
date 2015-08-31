@@ -30,8 +30,8 @@ module.exports = React.createClass({
   render: function() {
     return (
 	  <div>
-		<button onClick={this.handleRun.bind(this)}>Run Single Year</button>
-		<button onClick={this.handleRunContinuous.bind(this)}>{this.state.currentAction}</button>
+		<button onClick={ this.handleRun }>Run Single Year</button>
+		<button onClick={ this.handleRunContinuous }>{this.state.currentAction}</button>
 	  </div>
     );
   }

@@ -21,6 +21,10 @@ var DeathStats = React.createClass({
     Store.addChangeListener(this.compute);
   },
   
+  componentWillUnmount: function() {
+    Store.removeChangeListener(this.compute);
+  },
+  
   compute: function() {
 	this.setState({data: EnvironmentStats.populationData, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },

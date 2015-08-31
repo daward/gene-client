@@ -45,7 +45,7 @@ var Layout = React.createClass({
 			<RunYear />
 		  </div>
 		  <div>
-			<Genemap gridSize={30} margin={10}/>
+			<Genemap gridSize={21} margin={10}/>
 		  </div>
 		</div>
       </Sidebar>

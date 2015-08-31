@@ -19,6 +19,10 @@ var CreatureInfo = React.createClass({
     Store.addChangeCreatureListener(this.compute);
   },
   
+  componentWillUnmount: function() {
+	Store.removeChangeCreatureListener(this.compute);
+  },
+  
   compute: function() {
 	this.setState({data: EnvironmentStats.creatureInfo, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },

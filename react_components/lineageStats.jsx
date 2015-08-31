@@ -3,6 +3,7 @@ var DataGrid = require('react-datagrid')
 var Store = require('../store.js')
 var EnvironmentStats = require('../environmentStats.js')
 var sorty = require('sorty')
+var AppDispatcher = require('../appDispatcher.js')
 
 var LineageStats = React.createClass({
 	getInitialState: function() {		
@@ -19,6 +20,10 @@ var LineageStats = React.createClass({
     Store.addChangeListener(this.compute);
   },
   
+  componentWillUnmount: function() {
+	Store.removeChangeListener(this.compute);
+  },
+  
   compute: function() {
 	this.setState({data: EnvironmentStats.ancestorList, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },
@@ -32,6 +37,15 @@ var LineageStats = React.createClass({
 	  data = sort(this.state.data)
   },
   
+  onSelectionChange: function(newSelectedId, data){
+
+		AppDispatcher.dispatch({
+			eventName: 'select-ancestor',
+			creature : data.ancestor
+		});
+
+	},
+  
   render: function() {
 	return (
 	  <DataGrid 
@@ -39,6 +53,8 @@ var LineageStats = React.createClass({
 		sortInfo={this.state.sortInfo}
 		dataSource={this.sort(this.state.data)} 
 		columns={this.state.columns} 
+		selected={1}
+		onSelectionChange={this.onSelectionChange}
 		style={{width: this.props.width, height: this.props.height}}/>
     );
   }
