@@ -1,20 +1,30 @@
 var React  = require('react');
-var _ = require('lodash-node');
-var Store = require('../store.js')
 var AppDispatcher = require('../appDispatcher.js')
+var _ = require('lodash-node');
+var Shiva = require('../shiva.js')
+
+var Store = require('../stores/store.js')
+var AncestorStore = require('../stores/ancestorStore.js')
+var CreatureStore = require('../stores/creatureStore.js')
+var VegetationStore = require('../stores/vegetationStore.js')
+var PopulationStore = require('../stores/populationStore.js');
 
 module.exports = React.createClass({
+
   componentDidMount: function() {
-	Store.addChangeAncestorListener(this.paint);
-	Store.addChangeCreatureListener(this.paint);
-    this.paint();
+	AncestorStore.addChangeListener(this.paint);
+	CreatureStore.addChangeListener(this.paint);
+    PopulationStore.addChangeListener(this.paint);
+	Store.addChangeListener(this.paint);
+	VegetationStore.addChangeListener(this.paint);
+	this.paint();
   },  
   
   handleClick: function(event) {
 	var x = Math.floor((event.offsetX - this.props.margin) / this.props.gridSize);
 	var y = Math.floor((event.offsetY - this.props.margin) / this.props.gridSize);
 	
-	if(x <= Store.settings.dimensions.width && y <= Store.settings.dimensions.length) {
+	if(x <= Shiva.settings.dimensions.width && y <= Shiva.settings.dimensions.length) {
 	
 		 AppDispatcher.dispatch({
 			eventName: 'location-changed',
@@ -28,8 +38,8 @@ module.exports = React.createClass({
   {  	
     var context = this.getDOMNode().getContext('2d');
 	this.getDOMNode().addEventListener('click', this.handleClick)
-	var bw = this.props.gridSize * Store.settings.dimensions.width;
-	var bh = this.props.gridSize * Store.settings.dimensions.length;
+	var bw = this.props.gridSize * Shiva.settings.dimensions.width;
+	var bh = this.props.gridSize * Shiva.settings.dimensions.length;
 	
     context.clearRect(0, 0, 1520, 1520);
 	
@@ -43,7 +53,7 @@ module.exports = React.createClass({
 		context.lineTo(bw + this.props.margin, 0.5 + x + this.props.margin);
 	}
 	
-	this.paintVegetation(context, Store.settings)
+	this.paintVegetation(context, Shiva.settings)
 	
 	this.paintCreatures(context);
 	
@@ -51,18 +61,24 @@ module.exports = React.createClass({
 	context.stroke();
   },
   
+  getFillForCreature: function(creature) {
+	if (creature.data.isMarked(_.map(PopulationStore.populations, "tag"))) {
+		return "#FF8000"
+	} else if(_.find(creature.data.ancestry, function(anc) { return anc.id == AncestorStore.ancestor})) {
+		return "#FF0000";
+	} else {
+		return "#0000FF";
+	}
+  },
+  
   paintCreatures: function(context) {
 	
-	var gridSize = this.props.gridSize, margin = this.props.margin
-	_.forEach(Store.god.environment.getAllCreatures(), function(creature) {
+	var gridSize = this.props.gridSize, margin = this.props.margin, me = this;
+	_.forEach(Shiva.environment.getAllCreatures(), function(creature) {
 	
-		if(_.find(creature.data.ancestry, function(anc) { return anc.id == Store.ancestor})) {
-			context.fillStyle="#FF0000";
-		} else {
-			context.fillStyle="#0000FF";
-		}
+		context.fillStyle = me.getFillForCreature(creature);
 		
-		if(creature.data.id == Store.creature) {
+		if(creature.data.id == CreatureStore.creature) {
 			var padding = 3
 			
 			context.fillRect(
@@ -92,8 +108,10 @@ module.exports = React.createClass({
 	
 	for(var x = 0; x < settings.dimensions.width; x++) {
 		for(var y = 0; y < settings.dimensions.length; y++) {
-			var vegSize = Math.round(Store.god.environment.vegetationMap.get(x, y)[0].size)
-		    context.fillStyle= this.getColor(vegSize)
+		    var vegetation = Shiva.environment.vegetationMap.get(x, y)[0];
+			var pctValue = VegetationStore.getDensity(vegetation);
+			
+		    context.fillStyle= this.getVegetationColor(pctValue)
 			context.fillRect(
 				this.props.margin + x * this.props.gridSize, 
 				this.props.margin + y * this.props.gridSize, 
@@ -103,12 +121,9 @@ module.exports = React.createClass({
 	}
   },
   
-  getColor: function(value) {
+  getVegetationColor: function(pctValue) {
 	var startColor = [255, 255, 255];
 	var endColor = [0, 153, 0];
-	var endValue = 60;
-	
-	var pctValue = Math.min(value, endValue) / endValue;
 	
 	var color = "#"
 	for(var i = 0; i < 3; i++) {

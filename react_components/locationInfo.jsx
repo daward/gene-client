@@ -1,9 +1,13 @@
 var React = require('react');
 var DataGrid = require('react-datagrid')
-var Store = require('../store.js')
-var EnvironmentStats = require('../environmentStats.js')
+var LocationStore = require('../stores/locationStore.js')
 var sorty = require('sorty')
 var AppDispatcher = require('../appDispatcher.js')
+
+var mui = require('material-ui'),
+	Toolbar = mui.Toolbar,
+	ToolbarGroup = mui.ToolbarGroup,
+	ToolbarTitle = mui.ToolbarTitle;
 
 var LocationInfo = React.createClass({
 	getInitialState: function() {			
@@ -12,19 +16,19 @@ var LocationInfo = React.createClass({
 		  { name: 'Value', width: 250},
 		]
 		
-    return {data: EnvironmentStats.locationInfo, columns: columns, sortInfo:[{name: 'children', dir: 'desc', type: 'number'}]};
+    return {data: LocationStore.locationInfo, columns: columns, sortInfo:[{name: 'children', dir: 'desc', type: 'number'}]};
   },
   
   componentDidMount: function() {
-	Store.addChangeLocationListener(this.compute);
+	LocationStore.addUpdateListener(this.compute);
   },
   
   componentWillUnmount: function() {
-	Store.removeChangeLocationListener(this.compute);
+	LocationStore.removeUpdateListener(this.compute);
   },
   
   compute: function() {
-	this.setState({data: EnvironmentStats.locationInfo, columns: this.state.columns, sortInfo: this.state.sortInfo})
+	this.setState({data: LocationStore.locationInfo, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },
   
   sort: function(arr){
@@ -48,7 +52,11 @@ var LocationInfo = React.createClass({
   render: function() {
 	return (
 	  <div>
-	      <h2>Location Information</h2>
+	      <Toolbar>
+			<ToolbarGroup key={0} float="left">
+				<ToolbarTitle text="Location" />
+			</ToolbarGroup>
+		  </Toolbar>
 		  <DataGrid 
 			idProperty="Name" 
 			sortInfo={this.state.sortInfo}

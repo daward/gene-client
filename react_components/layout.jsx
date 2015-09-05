@@ -3,16 +3,31 @@ var Sidebar = require('react-sidebar');
 var RunYear = require('./runyear.jsx');
 var Genemap = require('./genemap.jsx')
 var DeathStats = require('./deathStats.jsx')
-var GeneStats = require('./geneStats.jsx')
-var LineageStats = require('./lineageStats.jsx')
+var PopulationSet = require('./populationSet.jsx')
 var LocationInfo = require('./locationInfo.jsx')
 var CreatureInfo = require('./creatureInfo.jsx')
-var Tabs = require('react-simpletabs');
+var mui = require('material-ui'),
+    ThemeManager = new mui.Styles.ThemeManager(),
+	Tabs = mui.Tabs,
+	Tab = mui.Tab;
+
+var Collapse = require('rc-collapse'),
+	Panel = Collapse.Panel;
 
 
 var Layout = React.createClass({
   getInitialState: function() {
     return {sidebarOpen: true};
+  },
+  
+  childContextTypes: {
+    muiTheme: React.PropTypes.object
+  },
+
+  getChildContext() {
+    return {
+      muiTheme: ThemeManager.getCurrentTheme()
+    };
   },
 
   onSetSidebarOpen: function(open) {
@@ -22,17 +37,16 @@ var Layout = React.createClass({
   render: function() {
     var sidebarContent = 
 	<Tabs>
-        <Tabs.Panel title='Population'>
+        <Tab label='Death'>
 			<DeathStats width={500} height={500}/>
-			<LineageStats width={500} height={500}/>
-		</Tabs.Panel>
-		<Tabs.Panel title='Genetics'>			
-			<GeneStats width={500} height={500}/>
-		</Tabs.Panel>		
-		<Tabs.Panel title='Location'>			
+		</Tab>
+		<Tab label="Populations">			
+				<PopulationSet/>			
+		</Tab>
+		<Tab label='Location'>			
 			<LocationInfo width={500} height={500}/>	
 			<CreatureInfo width={500} height={500}/>
-		</Tabs.Panel>
+		</Tab>
 	</Tabs>
 	
     return (
@@ -42,7 +56,7 @@ var Layout = React.createClass({
 			   docked={true}>
         <div>
 		  <div>
-			<RunYear />
+			<RunYear />			
 		  </div>
 		  <div>
 			<Genemap gridSize={21} margin={10}/>

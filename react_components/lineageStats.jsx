@@ -1,9 +1,14 @@
 var React = require('react');
 var DataGrid = require('react-datagrid')
-var Store = require('../store.js')
-var EnvironmentStats = require('../environmentStats.js')
+var PopulationStore = require('../stores/populationStore.js')
 var sorty = require('sorty')
 var AppDispatcher = require('../appDispatcher.js')
+var PopulationButton = require('./PopulationButton.jsx')
+
+var mui = require('material-ui'),
+Toolbar = mui.Toolbar,
+ToolbarGroup = mui.ToolbarGroup,
+ToolbarTitle = mui.ToolbarTitle;
 
 var LineageStats = React.createClass({
 	getInitialState: function() {		
@@ -13,19 +18,28 @@ var LineageStats = React.createClass({
 		  { name: 'percentage', width: 150},
 		]
 		
-    return {data: EnvironmentStats.ancestorList, columns: columns, sortInfo:[{name: 'children', dir: 'desc', type: 'number'}]};
+	var selected = null;
+	if(this.props.population.ancestorList && this.props.population.ancestorList.length > 0) {
+		selected  = this.props.population.ancestorList[0].ancestor;
+	}
+		
+    return {	
+		data: this.props.population.ancestorList, 
+		columns: columns, 
+		selected: selected,
+		sortInfo:[{name: 'children', dir: 'desc', type: 'number'}]};
   },
   
   componentDidMount: function() {
-    Store.addChangeListener(this.compute);
+    PopulationStore.addUpdateListener(this.compute);
   },
   
   componentWillUnmount: function() {
-	Store.removeChangeListener(this.compute);
+	PopulationStore.removeUpdateListener(this.compute);
   },
   
   compute: function() {
-	this.setState({data: EnvironmentStats.ancestorList, columns: this.state.columns, sortInfo: this.state.sortInfo})
+	this.setState({data: this.props.population.ancestorList, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },
   
   sort: function(arr){
@@ -38,7 +52,9 @@ var LineageStats = React.createClass({
   },
   
   onSelectionChange: function(newSelectedId, data){
-
+		this.state.selected = newSelectedId;
+		this.setState(this.state);
+		
 		AppDispatcher.dispatch({
 			eventName: 'select-ancestor',
 			creature : data.ancestor
@@ -48,14 +64,25 @@ var LineageStats = React.createClass({
   
   render: function() {
 	return (
+	<div>
+	  <Toolbar>
+		<ToolbarGroup key={0} float="left">
+			<ToolbarTitle text="Successful Ancestors" />
+		</ToolbarGroup>
+		<ToolbarGroup key={1} float="right">
+			<PopulationButton id={ this.state.selected } eventType="create-ancestor-marker"/>
+		</ToolbarGroup>
+	  </Toolbar>
+	  
 	  <DataGrid 
 		idProperty="ancestor" 
 		sortInfo={this.state.sortInfo}
 		dataSource={this.sort(this.state.data)} 
 		columns={this.state.columns} 
-		selected={1}
+		selected={this.state.selected}
 		onSelectionChange={this.onSelectionChange}
 		style={{width: this.props.width, height: this.props.height}}/>
+	</div>
     );
   }
   

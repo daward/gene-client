@@ -1,9 +1,15 @@
 var React = require('react');
 var DataGrid = require('react-datagrid')
-var Store = require('../store.js')
-var EnvironmentStats = require('../environmentStats.js')
-var sorty = require('sorty')
+var CreatureStore = require('../stores/creatureStore.js')
 var AppDispatcher = require('../appDispatcher.js')
+var PopulationButton = require('./PopulationButton.jsx')
+var _ = require('lodash-node');
+
+var mui = require('material-ui'),
+	Toolbar = mui.Toolbar,
+	ToolbarGroup = mui.ToolbarGroup,
+	ToolbarTitle = mui.ToolbarTitle;
+	
 
 var CreatureInfo = React.createClass({
 	getInitialState: function() {			
@@ -12,19 +18,21 @@ var CreatureInfo = React.createClass({
 		  { name: 'Value', width: 250},
 		]
 		
-    return {data: EnvironmentStats.creatureInfo, columns: columns, sortInfo:[{name: 'children', dir: 'desc', type: 'number'}]};
+    return {data: CreatureStore.creatureInfo, columns: columns, sortInfo:[{name: 'children', dir: 'desc', type: 'number'}]};
   },
   
   componentDidMount: function() {
-    Store.addChangeCreatureListener(this.compute);
+    CreatureStore.addChangeListener(this.compute);
+    CreatureStore.addUpdateListener(this.compute);
   },
   
   componentWillUnmount: function() {
-	Store.removeChangeCreatureListener(this.compute);
+	CreatureStore.removeUpdateListener(this.compute);
+	CreatureStore.removeChangeListener(this.compute);
   },
   
   compute: function() {
-	this.setState({data: EnvironmentStats.creatureInfo, columns: this.state.columns, sortInfo: this.state.sortInfo})
+	this.setState({data: CreatureStore.creatureInfo, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },
   
   sort: function(arr){
@@ -33,17 +41,29 @@ var CreatureInfo = React.createClass({
   
   onSortChange : function(info){
 	  this.state.sortInfo = info
-	  data = sort(this.state.data)
+	  data = sort(this.state.data.data)
+  },
+
+  
+  toolbarStyle: {
+	paddingBottom: "100px"
   },
   
   render: function() {
 	return (
 	  <div>
-	      <h2>Creature Information</h2>
+		  <Toolbar>
+			<ToolbarGroup key={0} float="left">
+				<ToolbarTitle text="Creature" />
+			</ToolbarGroup>
+			<ToolbarGroup key={1} float="right">
+				<PopulationButton id={this.state.data.id} eventType="create-marker"/>
+			</ToolbarGroup>
+		  </Toolbar>
 		  <DataGrid 
 			idProperty="Name" 
 			sortInfo={this.state.sortInfo}
-			dataSource={this.state.data} 
+			dataSource={this.state.data.data} 
 			columns={this.state.columns} 
 			style={{width: this.props.width, height: this.props.height}}/>
 	  </div>

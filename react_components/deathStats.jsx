@@ -1,8 +1,7 @@
 var React = require('react');
 var DataGrid = require('react-datagrid')
-var Store = require('../store.js')
+var Store = require('../stores/store.js')
 var sorty = require('sorty')
-var EnvironmentStats = require('../environmentStats.js')
 
 var DeathStats = React.createClass({
 	getInitialState: function() {
@@ -14,7 +13,7 @@ var DeathStats = React.createClass({
 		  { name: 'alive', width: 100},
 		];
 		
-    return {data: EnvironmentStats.populationData, columns: columns, sortInfo:[{name: 'year', dir: 'desc', type: 'number'}]};
+    return {data: Store.populationData, columns: columns, sortInfo:[{name: 'year', dir: 'desc', type: 'number'}]};
   },
   
   componentDidMount: function() {
@@ -26,7 +25,7 @@ var DeathStats = React.createClass({
   },
   
   compute: function() {
-	this.setState({data: EnvironmentStats.populationData, columns: this.state.columns, sortInfo: this.state.sortInfo})
+	this.setState({data: Store.populationData, columns: this.state.columns, sortInfo: this.state.sortInfo})
   },
   
   sort: function(arr){
