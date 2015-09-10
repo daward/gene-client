@@ -8,6 +8,7 @@ var AncestorStore = require('../stores/ancestorStore.js')
 var CreatureStore = require('../stores/creatureStore.js')
 var VegetationStore = require('../stores/vegetationStore.js')
 var PopulationStore = require('../stores/populationStore.js');
+var FilterStore = require('../stores/filterStore.js');
 
 module.exports = React.createClass({
 
@@ -17,6 +18,7 @@ module.exports = React.createClass({
     PopulationStore.addChangeListener(this.paint);
 	Store.addChangeListener(this.paint);
 	VegetationStore.addChangeListener(this.paint);
+	FilterStore.addChangeListener(this.paint);
 	this.paint();
   },  
   
@@ -76,6 +78,10 @@ module.exports = React.createClass({
 	var gridSize = this.props.gridSize, margin = this.props.margin, me = this;
 	_.forEach(Shiva.environment.getAllCreatures(), function(creature) {
 	
+		if(!FilterStore.isVisible(creature.data)) {
+			return;
+		}
+		
 		context.fillStyle = me.getFillForCreature(creature);
 		
 		if(creature.data.id == CreatureStore.creature) {

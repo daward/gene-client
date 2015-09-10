@@ -6,6 +6,7 @@ var DeathStats = require('./deathStats.jsx')
 var PopulationSet = require('./populationSet.jsx')
 var LocationInfo = require('./locationInfo.jsx')
 var CreatureInfo = require('./creatureInfo.jsx')
+var Filter = require('./filter.jsx')
 var mui = require('material-ui'),
     ThemeManager = new mui.Styles.ThemeManager(),
 	Tabs = mui.Tabs,
@@ -46,6 +47,9 @@ var Layout = React.createClass({
 		<Tab label='Location'>			
 			<LocationInfo width={500} height={500}/>	
 			<CreatureInfo width={500} height={500}/>
+		</Tab>
+		<Tab label='Filters'>			
+			<Filter />
 		</Tab>
 	</Tabs>
 	
