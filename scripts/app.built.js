@@ -16,28 +16,23 @@ var Dispatcher = require('flux').Dispatcher;
 
 module.exports = new Dispatcher();
 },{"flux":4}],2:[function(require,module,exports){
-
-var Filter = function(name, min, max, increment, enabled, predicate, getMax) {
+var BooleanFilter = function(name, defaultValue, enabled, predicate) {
 	this.name = name;
-	this.min = min;
-	this.max = max;
-	this.minValue = min;
-	this.maxValue = max;
-	this.increment = increment;
+	this.boolValue = defaultValue;
 	this.enabled = enabled;
 	this.predicate = predicate;
-	this.getMax = getMax;
 }
 
-Filter.prototype.eval = function(creature) {
+BooleanFilter.prototype.eval = function(creature) {
 	return this.predicate == null || !this.enabled || this.predicate(creature);
 }
 
-Filter.prototype.updateMax = function() {
-	this.max = Math.max(this.maxValue, this.getMax());
+BooleanFilter.prototype.setValue = function(value) {
+	this.boolValue = value;
 }
 
-module.exports = Filter
+
+module.exports = BooleanFilter
 },{}],3:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -75272,7 +75267,34 @@ Population.prototype.computeLineage = function() {
 }
 
 module.exports = Population;
-},{"./shiva.js":526,"./truncate.js":535,"lodash-node":28,"stats-lite":509}],511:[function(require,module,exports){
+},{"./shiva.js":529,"./truncate.js":538,"lodash-node":28,"stats-lite":509}],511:[function(require,module,exports){
+var RangeFilter = function(name, min, max, increment, enabled, predicate, getMax) {
+	this.name = name;
+	this.min = min;
+	this.max = max;
+	this.minValue = min;
+	this.maxValue = max;
+	this.increment = increment;
+	this.enabled = enabled;
+	this.predicate = predicate;
+	this.getMax = getMax;
+}
+
+RangeFilter.prototype.eval = function(creature) {
+	return this.predicate == null || !this.enabled || this.predicate(creature);
+}
+
+RangeFilter.prototype.updateMax = function() {
+	this.max = Math.max(this.maxValue, this.getMax());
+}
+
+RangeFilter.prototype.setValue = function(value) {
+	this.minValue = value[0];
+	this.maxValue = value[1];
+}
+
+module.exports = RangeFilter
+},{}],512:[function(require,module,exports){
 /** @jsx React.DOM */
 var React   = require('react');
 var Layout = require('./layout.jsx')
@@ -75288,7 +75310,67 @@ React.render(
 	React.createElement(Layout, null)
   , document.body
 );
-},{"./layout.jsx":518,"react":503,"react-tap-event-plugin":330}],512:[function(require,module,exports){
+},{"./layout.jsx":521,"react":503,"react-tap-event-plugin":330}],513:[function(require,module,exports){
+var React = require('react');
+var PopulationStore = require('../stores/populationStore.js');
+var FilterStore = require('../stores/filterStore.js');
+var PopulationButton = require('./PopulationButton.jsx')
+
+var mui = require('material-ui'),
+	Toolbar = mui.Toolbar,
+	ToolbarGroup = mui.ToolbarGroup,
+	ToolbarTitle = mui.ToolbarTitle;
+
+var FilterToolbar = React.createClass({displayName: "FilterToolbar",  
+	
+	getInitialState: function() {
+		return {
+			visible: FilterStore.visibleCreatures().length,
+			total: PopulationStore.populations[0].size()
+		};
+	},
+	
+	componentDidMount: function() {
+		FilterStore.addChangeRangeListener(this.setFilterSize);
+		FilterStore.addChangeListener(this.setFilterSize);
+		PopulationStore.addUpdateListener(this.setTotalSize)
+	},
+  
+	componentWillUnmount: function() {
+		FilterStore.removeChangeRangeListener(this.setFilterSize);
+		FilterStore.removeChangeListener(this.compute);
+		PopulationStore.removeUpdateListener(this.setTotalSize)
+	},
+
+	setFilterSize: function() {
+		this.state.visible = FilterStore.visibleCreatures().length
+		this.setState(this.state);
+	},
+	
+	setTotalSize: function() {		
+		this.state.total = PopulationStore.populations[0].size()
+		this.setState(this.state);
+	},
+	
+	render: function() {
+		
+		var toolBarText = "Filtered Creatures (" + this.state.visible + " of " + this.state.total + ")"
+		return (
+			React.createElement(Toolbar, null, 
+				React.createElement(ToolbarGroup, {key: 0, float: "left"}, 
+					React.createElement(ToolbarTitle, {text: {toolBarText}})
+				), 
+				React.createElement(ToolbarGroup, {key: 1, float: "right"}, 
+					React.createElement(PopulationButton, {eventType: "create-filter-marker"})
+				)
+			)
+		);
+	}
+	
+});
+
+module.exports = FilterToolbar;
+},{"../stores/filterStore.js":532,"../stores/populationStore.js":534,"./PopulationButton.jsx":514,"material-ui":63,"react":503}],514:[function(require,module,exports){
 var React = require('react');
 var AppDispatcher = require('../appDispatcher.js');
 var mui = require('material-ui'),
@@ -75324,7 +75406,7 @@ var PopulationButton = React.createClass({displayName: "PopulationButton",
  })
  
  module.exports = PopulationButton;
-},{"../appDispatcher.js":1,"material-ui":63,"react":503}],513:[function(require,module,exports){
+},{"../appDispatcher.js":1,"material-ui":63,"react":503}],515:[function(require,module,exports){
 var React = require('react');
 var DataGrid = require('react-datagrid')
 var CreatureStore = require('../stores/creatureStore.js')
@@ -75400,7 +75482,7 @@ var CreatureInfo = React.createClass({displayName: "CreatureInfo",
  })
  
  module.exports = CreatureInfo;
-},{"../appDispatcher.js":1,"../stores/creatureStore.js":528,"./PopulationButton.jsx":512,"lodash-node":28,"material-ui":63,"react":503,"react-datagrid":195}],514:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../stores/creatureStore.js":531,"./PopulationButton.jsx":514,"lodash-node":28,"material-ui":63,"react":503,"react-datagrid":195}],516:[function(require,module,exports){
 var React = require('react');
 var DataGrid = require('react-datagrid')
 var Store = require('../stores/store.js')
@@ -75455,13 +75537,16 @@ var DeathStats = React.createClass({displayName: "DeathStats",
  })
  
  module.exports = DeathStats;
-},{"../stores/store.js":532,"react":503,"react-datagrid":195,"sorty":504}],515:[function(require,module,exports){
+},{"../stores/store.js":535,"react":503,"react-datagrid":195,"sorty":504}],517:[function(require,module,exports){
 var React = require('react');
 var AppDispatcher = require('../appDispatcher.js')
 var _ = require('lodash-node');
 var FilterStore = require('../stores/filterStore.js');
 var ReactSlider = require('react-slider');
 var RangeSlider = require('./rangeSlider.jsx');
+var PopulationStore = require('../stores/populationStore.js')
+var FilterToolbar = require('./FilterToolbar.jsx');
+
 var mui = require('material-ui'),
 	Slider = mui.Slider,
 	Table = mui.Table,
@@ -75472,7 +75557,8 @@ var mui = require('material-ui'),
 	TableRowColumn = mui.TableRowColumn,
 	TableFooter = mui.TableFooter,
 	TextField = mui.TextField,
-	Colors = mui.Colors;
+	Colors = mui.Colors,
+	Checkbox = mui.Checkbox;
 	
 
 var Filter = React.createClass({displayName: "Filter",  
@@ -75489,7 +75575,9 @@ var Filter = React.createClass({displayName: "Filter",
 	  enableSelectAll: false,
 	  deselectOnClickaway: false,
 	  height: '700px',
-	  filters: FilterStore.filters
+	  filters: FilterStore.filters,
+	  visible: FilterStore.visibleCreatures().length,
+	  total: PopulationStore.populations[0].size()
 	};
   },
   
@@ -75506,12 +75594,11 @@ var Filter = React.createClass({displayName: "Filter",
 	this.setState(this.state);
   },
   
-  changeValue: function(name, minValue, maxValue) {
+  changeValue: function(name, value) {
 	AppDispatcher.dispatch({
 				eventName: 'filter-changed',
 				name : name,
-				minValue : minValue,
-				maxValue: maxValue,
+				value : value
 			});
   },
   
@@ -75526,15 +75613,30 @@ var Filter = React.createClass({displayName: "Filter",
  
   var me = this;
   var rows = _.map(this.state.filters, function(filter) {
+		
+		var selector;
+		if(filter.max !== undefined && filter.min !== undefined) {
+			selector = React.createElement(RangeSlider, {min: filter.min, max: filter.max, onChange: function(min, max) { me.changeValue(filter.name, [min, max]) }})
+		}
+		else if(filter.boolValue !== undefined) {
+			selector = React.createElement(Checkbox, {
+			  name: filter.name, 
+			  value: filter.name, 
+			  defaultChecked: filter.boolValue, 
+			  onCheck: function(event, checked) { me.changeValue(filter.name, checked) }})
+		}		
+		
 		return React.createElement(TableRow, {selected: filter.enabled}, 
 			React.createElement(TableRowColumn, {style: {fontSize:'20px'}}, filter.name), 
 			React.createElement(TableRowColumn, {style: {paddingLeft:'5px', paddingRight:'5px'}}, 
-			    React.createElement(RangeSlider, {min: filter.min, max: filter.max, onChange: function(min, max) { me.changeValue(filter.name, min, max) }})
+				{selector}
 			)
 		)
 	});
   
     return (
+	React.createElement("div", null, 
+	  React.createElement(FilterToolbar, null), 
 	  React.createElement(Table, {
   style: {width:'480px'}, 
   height: this.state.height, 
@@ -75556,12 +75658,15 @@ var Filter = React.createClass({displayName: "Filter",
     rows
   )
 )
+)
     );
   }
 });
 
 module.exports = Filter;
-},{"../appDispatcher.js":1,"../stores/filterStore.js":529,"./rangeSlider.jsx":524,"lodash-node":28,"material-ui":63,"react":503,"react-slider":326}],516:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../stores/filterStore.js":532,"../stores/populationStore.js":534,"./FilterToolbar.jsx":513,"./rangeSlider.jsx":527,"lodash-node":28,"material-ui":63,"react":503,"react-slider":326}],518:[function(require,module,exports){
+arguments[4][513][0].apply(exports,arguments)
+},{"../stores/filterStore.js":532,"../stores/populationStore.js":534,"./PopulationButton.jsx":514,"dup":513,"material-ui":63,"react":503}],519:[function(require,module,exports){
 var React = require('react');
 var DataGrid = require('react-datagrid');
 var PopulationStore = require('../stores/populationStore.js')
@@ -75632,7 +75737,7 @@ var GeneStats = React.createClass({displayName: "GeneStats",
  })
  
  module.exports = GeneStats;
-},{"../stores/populationStore.js":531,"gene-sim":12,"lodash-node":28,"react":503,"react-datagrid":195,"sorty":504}],517:[function(require,module,exports){
+},{"../stores/populationStore.js":534,"gene-sim":12,"lodash-node":28,"react":503,"react-datagrid":195,"sorty":504}],520:[function(require,module,exports){
 var React  = require('react');
 var AppDispatcher = require('../appDispatcher.js')
 var _ = require('lodash-node');
@@ -75781,7 +75886,7 @@ module.exports = React.createClass({displayName: "exports",
   }
 });
 
-},{"../appDispatcher.js":1,"../shiva.js":526,"../stores/ancestorStore.js":527,"../stores/creatureStore.js":528,"../stores/filterStore.js":529,"../stores/populationStore.js":531,"../stores/store.js":532,"../stores/vegetationStore.js":533,"lodash-node":28,"react":503}],518:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../shiva.js":529,"../stores/ancestorStore.js":530,"../stores/creatureStore.js":531,"../stores/filterStore.js":532,"../stores/populationStore.js":534,"../stores/store.js":535,"../stores/vegetationStore.js":536,"lodash-node":28,"react":503}],521:[function(require,module,exports){
 var React = require('react');
 var Sidebar = require('react-sidebar');
 var RunYear = require('./runyear.jsx');
@@ -75856,7 +75961,7 @@ var Layout = React.createClass({displayName: "Layout",
 });
 
 module.exports = Layout;
-},{"./creatureInfo.jsx":513,"./deathStats.jsx":514,"./filter.jsx":515,"./genemap.jsx":517,"./locationInfo.jsx":520,"./populationSet.jsx":523,"./runyear.jsx":525,"material-ui":63,"rc-collapse":170,"react":503,"react-sidebar":324}],519:[function(require,module,exports){
+},{"./creatureInfo.jsx":515,"./deathStats.jsx":516,"./filter.jsx":517,"./genemap.jsx":520,"./locationInfo.jsx":523,"./populationSet.jsx":526,"./runyear.jsx":528,"material-ui":63,"rc-collapse":170,"react":503,"react-sidebar":324}],522:[function(require,module,exports){
 var React = require('react');
 var DataGrid = require('react-datagrid')
 var PopulationStore = require('../stores/populationStore.js')
@@ -75948,7 +76053,7 @@ var LineageStats = React.createClass({displayName: "LineageStats",
  })
  
  module.exports = LineageStats;
-},{"../appDispatcher.js":1,"../stores/populationStore.js":531,"./PopulationButton.jsx":512,"material-ui":63,"react":503,"react-datagrid":195,"sorty":504}],520:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../stores/populationStore.js":534,"./PopulationButton.jsx":514,"material-ui":63,"react":503,"react-datagrid":195,"sorty":504}],523:[function(require,module,exports){
 var React = require('react');
 var DataGrid = require('react-datagrid')
 var LocationStore = require('../stores/locationStore.js')
@@ -76023,9 +76128,9 @@ var LocationInfo = React.createClass({displayName: "LocationInfo",
  })
  
  module.exports = LocationInfo;
-},{"../appDispatcher.js":1,"../stores/locationStore.js":530,"material-ui":63,"react":503,"react-datagrid":195,"sorty":504}],521:[function(require,module,exports){
-arguments[4][512][0].apply(exports,arguments)
-},{"../appDispatcher.js":1,"dup":512,"material-ui":63,"react":503}],522:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../stores/locationStore.js":533,"material-ui":63,"react":503,"react-datagrid":195,"sorty":504}],524:[function(require,module,exports){
+arguments[4][514][0].apply(exports,arguments)
+},{"../appDispatcher.js":1,"dup":514,"material-ui":63,"react":503}],525:[function(require,module,exports){
 var React = require('react');
 var GeneStats = require('./geneStats.jsx')
 var LineageStats = require('./lineageStats.jsx')
@@ -76043,7 +76148,7 @@ var PopulationInfo = React.createClass({displayName: "PopulationInfo",
 });
 
 module.exports = PopulationInfo;
-},{"./geneStats.jsx":516,"./lineageStats.jsx":519,"react":503}],523:[function(require,module,exports){
+},{"./geneStats.jsx":519,"./lineageStats.jsx":522,"react":503}],526:[function(require,module,exports){
 var React = require('react');
 var Collapse = require('rc-collapse');
 var PopulationInfo = require('./populationInfo.jsx');
@@ -76096,7 +76201,7 @@ var PopulationSet = React.createClass({displayName: "PopulationSet",
 });
 
 module.exports = PopulationSet;
-},{"../stores/populationStore.js":531,"./populationInfo.jsx":522,"lodash-node":28,"rc-collapse":170,"react":503}],524:[function(require,module,exports){
+},{"../stores/populationStore.js":534,"./populationInfo.jsx":525,"lodash-node":28,"rc-collapse":170,"react":503}],527:[function(require,module,exports){
 var React = require('react');
 var RangeSlider = React.createClass({displayName: "RangeSlider",  
 
@@ -76123,6 +76228,7 @@ var RangeSlider = React.createClass({displayName: "RangeSlider",
 	this.state.minValue = ui.values[ 0 ];
 	this.state.maxValue = ui.values[ 1 ];
 	this.setState(this.state);
+	this.props.onChange(ui.values[0], ui.values[1])
   },
   
   change: function( event, ui ) {
@@ -76138,7 +76244,7 @@ var RangeSlider = React.createClass({displayName: "RangeSlider",
 	return (
 	React.createElement("div", null, 
 		React.createElement("p", null, 
-		"(", this.props.max, ")", this.state.minValue, " - ", this.state.maxValue
+		this.state.minValue, " - ", this.state.maxValue
 		), 
 		React.createElement("div", {id: "slider-range"})
 	))
@@ -76146,7 +76252,7 @@ var RangeSlider = React.createClass({displayName: "RangeSlider",
 });
 
 module.exports = RangeSlider;
-},{"react":503}],525:[function(require,module,exports){
+},{"react":503}],528:[function(require,module,exports){
 var React  = require('react');
 var AppDispatcher = require('../appDispatcher.js')
 var VegetationStore = require('../stores/vegetationStore.js')
@@ -76219,7 +76325,7 @@ module.exports = React.createClass({displayName: "exports",
   }
 });
 
-},{"../appDispatcher.js":1,"../stores/vegetationStore.js":533,"material-ui":63,"react":503}],526:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../stores/vegetationStore.js":536,"material-ui":63,"react":503}],529:[function(require,module,exports){
 var Gene = require('gene-sim');
 
 var shiva = new Gene.God()
@@ -76233,7 +76339,7 @@ shiva.increment = function() {
 }
 
 module.exports = shiva;
-},{"gene-sim":12}],527:[function(require,module,exports){
+},{"gene-sim":12}],530:[function(require,module,exports){
 var AppDispatcher = require('../appDispatcher.js')
 var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
@@ -76273,7 +76379,7 @@ AppDispatcher.register(function(action) {
  })
 
 module.exports = AncestorStore;
-},{"../appDispatcher.js":1,"events":3,"object-assign":167}],528:[function(require,module,exports){
+},{"../appDispatcher.js":1,"events":3,"object-assign":167}],531:[function(require,module,exports){
 var AppDispatcher = require('../appDispatcher.js')
 var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
@@ -76366,13 +76472,14 @@ AppDispatcher.register(function(action) {
  })
 
 module.exports = CreatureStore;
-},{"../appDispatcher.js":1,"../shiva.js":526,"./store.js":532,"events":3,"lodash-node":28,"object-assign":167}],529:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../shiva.js":529,"./store.js":535,"events":3,"lodash-node":28,"object-assign":167}],532:[function(require,module,exports){
 var AppDispatcher = require('../appDispatcher.js')
 var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
 var _ = require('lodash-node');
 var Store = require('./store.js')
-var Filter = require('../filter.js');
+var RangeFilter = require('../rangeFilter.js');
+var BooleanFilter = require('../booleanFilter.js');
 var TraitFilter = require('../traitFilter.js');
 var Shiva = require('../shiva.js');
 
@@ -76397,16 +76504,17 @@ var FilterStore = assign({}, EventEmitter.prototype, {
     this.removeListener(RANGE_CHANGE_EVENT, callback);
   },
   
-  setValue: function(name, minValue, maxValue) {
+  setValue: function(name, value) {
 	  var filter = _.find(FilterStore.filters, 'name', name);
-	  filter.minValue = minValue;
-	  filter.maxValue = maxValue;
+	  filter.setValue(value)
 	  this.emit(CHANGE_EVENT);
   },
   
   updateRanges: function() {
 	  _.forEach(FilterStore.filters, function(filter) {
-		filter.updateMax();  
+		if(filter.updateMax) {
+			filter.updateMax();
+		}
 	  })
 	  this.emit(RANGE_CHANGE_EVENT);
   },
@@ -76438,12 +76546,19 @@ var FilterStore = assign({}, EventEmitter.prototype, {
 	  })
 	  
 	  return retVal;
+  },
+  
+  visibleCreatures : function() {
+	  var me = this;
+	  return _.filter(Shiva.environment.getAllCreatures(), function(creature) {
+		 return  me.isVisible(creature.data);
+	  });
   }
   
 });	
 
 FilterStore.filters = [];
-FilterStore.filters.push(new Filter('Age', 0, 0, 1, false, 
+FilterStore.filters.push(new RangeFilter('Age', 0, 0, 1, false, 
 	function(creature) {
 		return creature.age <= this.maxValue && creature.age >= this.minValue;
 	},
@@ -76454,6 +76569,11 @@ FilterStore.filters.push(new Filter('Age', 0, 0, 1, false,
 		}))
 	}	
 ));
+
+FilterStore.filters.push(new BooleanFilter('Adults', false, false, function(creature) {
+		return creature.isFertile() == this.boolValue;
+}));
+
 FilterStore.filters.push(TraitFilter('Intelligence', false));
 FilterStore.filters.push(TraitFilter('Size', false));
 FilterStore.filters.push(TraitFilter('Fertility', false));
@@ -76461,10 +76581,11 @@ FilterStore.filters.push(TraitFilter('Speed', false));
 FilterStore.filters.push(TraitFilter('Prowess', false));
 
 
+
 AppDispatcher.register(function(action) {
 	switch(action.eventName) {
 		case "filter-changed":
-			FilterStore.setValue(action.name, action.minValue, action.maxValue);
+			FilterStore.setValue(action.name, action.value);
 			break;
 			
 		case "filters-enabled":
@@ -76482,7 +76603,7 @@ AppDispatcher.register(function(action) {
  })
 
 module.exports = FilterStore;
-},{"../appDispatcher.js":1,"../filter.js":2,"../shiva.js":526,"../traitFilter.js":534,"./store.js":532,"events":3,"lodash-node":28,"object-assign":167}],530:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../booleanFilter.js":2,"../rangeFilter.js":511,"../shiva.js":529,"../traitFilter.js":537,"./store.js":535,"events":3,"lodash-node":28,"object-assign":167}],533:[function(require,module,exports){
 var AppDispatcher = require('../appDispatcher.js')
 var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
@@ -76559,13 +76680,15 @@ AppDispatcher.register(function(action) {
  })
 
 module.exports = LocationStore;
-},{"../appDispatcher.js":1,"../shiva.js":526,"./store.js":532,"events":3,"lodash-node":28,"object-assign":167}],531:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../shiva.js":529,"./store.js":535,"events":3,"lodash-node":28,"object-assign":167}],534:[function(require,module,exports){
 var AppDispatcher = require('../appDispatcher.js')
 var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
 var _ = require('lodash-node');
 var stats = require("stats-lite")
+var uuid = require('../uuid.js');
 
+var FilterStore = require('./filterStore.js');
 var Shiva = require('../shiva.js');
 var Population = require('../population.js')
 var Store = require('./store.js')
@@ -76613,6 +76736,20 @@ var PopulationStore = assign({}, EventEmitter.prototype, {
 	  this.emit(CHANGE_EVENT);
   },
   
+  createFilterPopulation: function() {
+	  var id = "filter-" + uuid();
+	_.forEach(Shiva.environment.getAllCreatures(), function(creature) {
+		if(FilterStore.isVisible(creature.data)) {
+			creature.data.markers.push(id);
+		}
+	});	
+	
+	var population = new Population(id, "filter - " + id);
+	population.update();
+	PopulationStore.populations.push(population);
+	this.emit(CHANGE_EVENT);
+  },
+  
   update : function() {
 	  _.forEach(PopulationStore.populations, function(population) {
 		  population.update();
@@ -76641,7 +76778,12 @@ AppDispatcher.register(function(action) {
 		case "create-ancestor-marker":
 			PopulationStore.createAncestorPopulation(action.creature);			
 			break;
-			
+		
+		case "create-filter-marker":
+			PopulationStore.createFilterPopulation();			
+			break;
+		
+		
 		case "start-year":	
 			AppDispatcher.waitFor([Store.dispatchToken]);
 			PopulationStore.update()
@@ -76653,7 +76795,7 @@ AppDispatcher.register(function(action) {
  })
 
 module.exports = PopulationStore;
-},{"../appDispatcher.js":1,"../population.js":510,"../shiva.js":526,"./store.js":532,"events":3,"lodash-node":28,"object-assign":167,"stats-lite":509}],532:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../population.js":510,"../shiva.js":529,"../uuid.js":539,"./filterStore.js":532,"./store.js":535,"events":3,"lodash-node":28,"object-assign":167,"stats-lite":509}],535:[function(require,module,exports){
 var AppDispatcher = require('../appDispatcher.js')
 var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
@@ -76731,7 +76873,7 @@ Store.dispatchToken = AppDispatcher.register(function(action) {
  }
 
 module.exports = Store;
-},{"../appDispatcher.js":1,"../shiva.js":526,"../truncate.js":535,"events":3,"lodash-node":28,"object-assign":167}],533:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../shiva.js":529,"../truncate.js":538,"events":3,"lodash-node":28,"object-assign":167}],536:[function(require,module,exports){
 var AppDispatcher = require('../appDispatcher.js')
 var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
@@ -76790,9 +76932,9 @@ VegetationStore.dispatchToken = AppDispatcher.register(function(action) {
 
 
 module.exports = VegetationStore;
-},{"../appDispatcher.js":1,"../shiva.js":526,"../truncate.js":535,"events":3,"lodash-node":28,"object-assign":167}],534:[function(require,module,exports){
+},{"../appDispatcher.js":1,"../shiva.js":529,"../truncate.js":538,"events":3,"lodash-node":28,"object-assign":167}],537:[function(require,module,exports){
 var Shiva = require('./shiva.js');
-var Filter = require('./filter.js')
+var RangeFilter = require('./rangeFilter.js')
 var _ = require('lodash-node');
 
 module.exports = function(name, enabled) {
@@ -76806,12 +76948,12 @@ module.exports = function(name, enabled) {
 		
 	var predicate = function(creature) {
 		var val = creature.traits[name].value()
-		return val <= this.maxValue && val > this.minValue;
+		return val <= this.maxValue && val >= this.minValue;
 	}	
 	
-	return new Filter(name, 0, 0, .1, enabled, predicate, getMax);
+	return new RangeFilter(name, 0, 0, .1, enabled, predicate, getMax);
 }
-},{"./filter.js":2,"./shiva.js":526,"lodash-node":28}],535:[function(require,module,exports){
+},{"./rangeFilter.js":511,"./shiva.js":529,"lodash-node":28}],538:[function(require,module,exports){
 var sorty = require('sorty');
 var _ = require('lodash-node');
 
@@ -76824,4 +76966,6 @@ module.exports.truncateByField = function(data, field) {
 
 	return _.slice(data, 0, 100)
 }
-},{"lodash-node":28,"sorty":504}]},{},[511,513,514,515,516,517,518,519,520,521,522,523,524,525]);
+},{"lodash-node":28,"sorty":504}],539:[function(require,module,exports){
+arguments[4][20][0].apply(exports,arguments)
+},{"dup":20}]},{},[512,515,516,517,518,519,520,521,522,523,524,525,526,527,528]);

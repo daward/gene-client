@@ -24,6 +24,7 @@ var RangeSlider = React.createClass({
 	this.state.minValue = ui.values[ 0 ];
 	this.state.maxValue = ui.values[ 1 ];
 	this.setState(this.state);
+	this.props.onChange(ui.values[0], ui.values[1])
   },
   
   change: function( event, ui ) {
@@ -39,7 +40,7 @@ var RangeSlider = React.createClass({
 	return (
 	<div>
 		<p>
-		({this.props.max}){this.state.minValue} - {this.state.maxValue}
+		{this.state.minValue} - {this.state.maxValue}
 		</p>
 		<div id="slider-range"></div>
 	</div>)

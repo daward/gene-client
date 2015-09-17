@@ -3,7 +3,9 @@ var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
 var _ = require('lodash-node');
 var stats = require("stats-lite")
+var uuid = require('../uuid.js');
 
+var FilterStore = require('./filterStore.js');
 var Shiva = require('../shiva.js');
 var Population = require('../population.js')
 var Store = require('./store.js')
@@ -51,6 +53,20 @@ var PopulationStore = assign({}, EventEmitter.prototype, {
 	  this.emit(CHANGE_EVENT);
   },
   
+  createFilterPopulation: function() {
+	  var id = "filter-" + uuid();
+	_.forEach(Shiva.environment.getAllCreatures(), function(creature) {
+		if(FilterStore.isVisible(creature.data)) {
+			creature.data.markers.push(id);
+		}
+	});	
+	
+	var population = new Population(id, "filter - " + id);
+	population.update();
+	PopulationStore.populations.push(population);
+	this.emit(CHANGE_EVENT);
+  },
+  
   update : function() {
 	  _.forEach(PopulationStore.populations, function(population) {
 		  population.update();
@@ -79,7 +95,12 @@ AppDispatcher.register(function(action) {
 		case "create-ancestor-marker":
 			PopulationStore.createAncestorPopulation(action.creature);			
 			break;
-			
+		
+		case "create-filter-marker":
+			PopulationStore.createFilterPopulation();			
+			break;
+		
+		
 		case "start-year":	
 			AppDispatcher.waitFor([Store.dispatchToken]);
 			PopulationStore.update()

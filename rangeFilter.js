@@ -1,4 +1,4 @@
-var Filter = function(name, min, max, increment, enabled, predicate, getMax) {
+var RangeFilter = function(name, min, max, increment, enabled, predicate, getMax) {
 	this.name = name;
 	this.min = min;
 	this.max = max;
@@ -10,12 +10,17 @@ var Filter = function(name, min, max, increment, enabled, predicate, getMax) {
 	this.getMax = getMax;
 }
 
-Filter.prototype.eval = function(creature) {
+RangeFilter.prototype.eval = function(creature) {
 	return this.predicate == null || !this.enabled || this.predicate(creature);
 }
 
-Filter.prototype.updateMax = function() {
+RangeFilter.prototype.updateMax = function() {
 	this.max = Math.max(this.maxValue, this.getMax());
 }
 
-module.exports = Filter
+RangeFilter.prototype.setValue = function(value) {
+	this.minValue = value[0];
+	this.maxValue = value[1];
+}
+
+module.exports = RangeFilter

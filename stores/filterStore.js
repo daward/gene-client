@@ -3,7 +3,8 @@ var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
 var _ = require('lodash-node');
 var Store = require('./store.js')
-var Filter = require('../filter.js');
+var RangeFilter = require('../rangeFilter.js');
+var BooleanFilter = require('../booleanFilter.js');
 var TraitFilter = require('../traitFilter.js');
 var Shiva = require('../shiva.js');
 
@@ -28,16 +29,17 @@ var FilterStore = assign({}, EventEmitter.prototype, {
     this.removeListener(RANGE_CHANGE_EVENT, callback);
   },
   
-  setValue: function(name, minValue, maxValue) {
+  setValue: function(name, value) {
 	  var filter = _.find(FilterStore.filters, 'name', name);
-	  filter.minValue = minValue;
-	  filter.maxValue = maxValue;
+	  filter.setValue(value)
 	  this.emit(CHANGE_EVENT);
   },
   
   updateRanges: function() {
 	  _.forEach(FilterStore.filters, function(filter) {
-		filter.updateMax();  
+		if(filter.updateMax) {
+			filter.updateMax();
+		}
 	  })
 	  this.emit(RANGE_CHANGE_EVENT);
   },
@@ -69,12 +71,19 @@ var FilterStore = assign({}, EventEmitter.prototype, {
 	  })
 	  
 	  return retVal;
+  },
+  
+  visibleCreatures : function() {
+	  var me = this;
+	  return _.filter(Shiva.environment.getAllCreatures(), function(creature) {
+		 return  me.isVisible(creature.data);
+	  });
   }
   
 });	
 
 FilterStore.filters = [];
-FilterStore.filters.push(new Filter('Age', 0, 0, 1, false, 
+FilterStore.filters.push(new RangeFilter('Age', 0, 0, 1, false, 
 	function(creature) {
 		return creature.age <= this.maxValue && creature.age >= this.minValue;
 	},
@@ -85,6 +94,11 @@ FilterStore.filters.push(new Filter('Age', 0, 0, 1, false,
 		}))
 	}	
 ));
+
+FilterStore.filters.push(new BooleanFilter('Adults', false, false, function(creature) {
+		return creature.isFertile() == this.boolValue;
+}));
+
 FilterStore.filters.push(TraitFilter('Intelligence', false));
 FilterStore.filters.push(TraitFilter('Size', false));
 FilterStore.filters.push(TraitFilter('Fertility', false));
@@ -92,10 +106,11 @@ FilterStore.filters.push(TraitFilter('Speed', false));
 FilterStore.filters.push(TraitFilter('Prowess', false));
 
 
+
 AppDispatcher.register(function(action) {
 	switch(action.eventName) {
 		case "filter-changed":
-			FilterStore.setValue(action.name, action.minValue, action.maxValue);
+			FilterStore.setValue(action.name, action.value);
 			break;
 			
 		case "filters-enabled":

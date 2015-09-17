@@ -1,5 +1,5 @@
 var Shiva = require('./shiva.js');
-var Filter = require('./filter.js')
+var RangeFilter = require('./rangeFilter.js')
 var _ = require('lodash-node');
 
 module.exports = function(name, enabled) {
@@ -16,5 +16,5 @@ module.exports = function(name, enabled) {
 		return val <= this.maxValue && val >= this.minValue;
 	}	
 	
-	return new Filter(name, 0, 0, .1, enabled, predicate, getMax);
+	return new RangeFilter(name, 0, 0, .1, enabled, predicate, getMax);
 }
